@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Daily IHR Monitoring</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--primary:#0f3b5e;--accent:#e67e22;--success:#27ae60;--danger:#e74c3c;--gray:#95a5a6;--light-bg:#f0f4f8;--card-bg:#fff;--text:#2c3e50;--text-light:#7f8c8d;--shadow:0 4px 16px rgba(0,0,0,.10);--radius:12px;--touch-target:48px;--font:'Segoe UI',system-ui,-apple-system,sans-serif}
+html{font-size:16px;height:100%}
+body{font-family:var(--font);background:var(--light-bg);color:var(--text);height:100%;overflow:hidden;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--gray);border-radius:4px}
+.app-header{background:var(--primary);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:10;min-height:64px;gap:8px}
+.header-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.logo-brand{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px;padding:4px 8px;min-width:52px;min-height:52px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.logo-brand img{max-height:44px;width:auto;display:block}
+.header-title-group{flex:1;min-width:0}
+.header-title-group h1{font-size:1.1rem;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-title-group .header-subtitle{font-size:.7rem;opacity:.8;display:block;margin-top:-2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-sync{font-size:.7rem;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0}
+.header-sync.synced{background:rgba(46,204,113,.3)}
+.header-sync.syncing{background:rgba(241,196,15,.3);animation:pulse 1s infinite}
+.header-sync .refresh-toggle{background:none;border:none;color:#fff;cursor:pointer;font-size:.9rem;padding:2px 6px;border-radius:4px}
+.header-sync .refresh-toggle.off{opacity:.5}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.main-content{flex:1;overflow-y:auto;padding:16px 16px 80px;-webkit-overflow-scrolling:touch}
+.page-section{display:none;animation:fadeIn .25s ease}
+.page-section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card-bg);display:flex;border-top:1px solid #e9ecef;box-shadow:0 -2px 12px rgba(0,0,0,.06);z-index:20;height:64px}
+.bottom-nav button{flex:1;border:none;background:transparent;color:var(--text-light);font-size:.7rem;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:6px 0;border-top:3px solid transparent;font-family:var(--font)}
+.bottom-nav button i{font-size:1.3rem}
+.bottom-nav button.active{color:var(--primary);border-top-color:var(--primary);background:rgba(15,59,94,.04)}
+.bottom-nav button:active{transform:scale(.94)}
+.card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 16px;margin-bottom:18px}
+.card-title{font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title i{color:var(--accent);width:22px;text-align:center}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.82rem;font-weight:600;margin-bottom:4px}
+.form-group label .required{color:var(--danger);margin-left:2px}
+.form-control{width:100%;padding:12px 14px;font-size:1rem;border:2px solid #e9ecef;border-radius:10px;background:#fafbfc;font-family:var(--font);color:var(--text);min-height:var(--touch-target);-webkit-appearance:none;appearance:none}
+.form-control:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(15,59,94,.1)}
+.form-control:disabled,.form-control[readonly]{background:#f1f3f5;color:var(--text-light)}
+select.form-control{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237f8c8d' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:40px}
+textarea.form-control{resize:vertical;min-height:60px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row .form-group{margin-bottom:0}
+.search-dropdown-wrap{position:relative}
+.search-dropdown-wrap input[type="text"]{width:100%;padding:12px 14px;font-size:1rem;border:2px solid #e9ecef;border-radius:10px;background:#fafbfc;font-family:var(--font);color:var(--text);min-height:var(--touch-target)}
+.search-dropdown-wrap input[type="text"]:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(15,59,94,.1)}
+.search-dropdown-wrap .dropdown-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:2px solid #e9ecef;border-radius:10px;max-height:200px;overflow-y:auto;z-index:50;display:none;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+.search-dropdown-wrap .dropdown-list.open{display:block}
+.search-dropdown-wrap .dropdown-item{padding:12px 14px;cursor:pointer;border-bottom:1px solid #f1f3f5;font-size:.95rem;min-height:44px;display:flex;align-items:center}
+.search-dropdown-wrap .dropdown-item:hover{background:#f0f4f8}
+.search-dropdown-wrap .dropdown-item .highlight{font-weight:700;color:var(--primary)}
+.search-dropdown-wrap .dropdown-item .sub-text{font-size:.8rem;color:var(--text-light);margin-left:8px}
+.search-dropdown-wrap .no-results{padding:14px;text-align:center;color:var(--text-light);font-size:.9rem}
+.search-dropdown-wrap .dropdown-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);font-size:1.1rem;cursor:pointer;padding:6px;display:none}
+.search-dropdown-wrap .dropdown-clear.visible{display:block}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;font-size:1rem;font-weight:600;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);min-height:var(--touch-target);min-width:48px;text-decoration:none}
+.btn:active{transform:scale(.96)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-outline{background:transparent;border:2px solid var(--primary);color:var(--primary)}
+.btn-sm{padding:8px 14px;font-size:.85rem;min-height:38px}
+.btn-block{width:100%;justify-content:center}
+.btn:disabled{opacity:.6;pointer-events:none}
+.btn .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.list-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border:1px solid #eef2f6;min-height:52px}
+.list-item .info{flex:1;min-width:0}
+.list-item .info .primary{font-weight:600;font-size:.95rem}
+.list-item .info .secondary{font-size:.8rem;color:var(--text-light);display:block;margin-top:1px}
+.list-item .actions{display:flex;gap:6px;flex-shrink:0;margin-left:10px}
+.list-item .actions button{background:none;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:.9rem;min-height:38px;min-width:38px;display:flex;align-items:center;justify-content:center}
+.list-item .actions .btn-del{color:var(--danger);background:rgba(231,76,60,.08)}
+.empty-state{text-align:center;padding:30px 10px;color:var(--text-light)}
+.empty-state i{font-size:2.4rem;color:#dce3ea;margin-bottom:10px;display:block}
+.empty-state p{font-size:.95rem}
+.toast-container{position:fixed;top:76px;left:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--text);color:#fff;padding:14px 18px;border-radius:10px;font-size:.9rem;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:auto;display:flex;align-items:center;gap:12px;animation:slideDown .3s ease}
+.toast-success{background:var(--success)}.toast-error{background:var(--danger)}.toast-warning{background:var(--accent)}
+.toast i{font-size:1.2rem;flex-shrink:0}
+.toast .toast-close{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.7);font-size:1.2rem;cursor:pointer;padding:4px}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.loading-overlay.active{display:flex}
+.loading-overlay .spinner-big{width:48px;height:48px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+.loading-overlay p{color:#fff;font-size:1.1rem;font-weight:500}
+.edit-popup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);z-index:80;align-items:center;justify-content:center;padding:20px}
+.edit-popup-overlay.active{display:flex}
+.edit-popup{background:#fff;border-radius:var(--radius);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;padding:24px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:fadeIn .2s ease}
+.edit-popup .popup-title{font-size:1.1rem;font-weight:700;color:var(--primary);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.edit-popup .popup-close{margin-left:auto;background:none;border:none;font-size:1.5rem;color:var(--gray);cursor:pointer;padding:0 6px}
+.edit-popup .form-group{margin-bottom:12px}
+.edit-popup .form-group label{font-size:.75rem;text-transform:uppercase;letter-spacing:.3px;color:var(--text-light)}
+.edit-popup .form-group .form-control{padding:10px 12px;font-size:.95rem;min-height:40px}
+.record-item{padding:12px 14px;background:#f8fafc;border-radius:8px;margin-bottom:6px;border:1px solid #eef2f6;font-size:.85rem}
+.record-item .row{display:flex;flex-wrap:wrap;gap:4px 12px}
+.record-item .row .label{font-weight:600;color:var(--text-light);font-size:.7rem;text-transform:uppercase;letter-spacing:.2px}
+.record-item .row .value{font-weight:500}
+.record-item .row .badge{display:inline-block;background:var(--primary);color:#fff;padding:0 10px;border-radius:12px;font-size:.7rem;font-weight:600;line-height:20px}
+.record-item .row .badge.nc{background:var(--danger)}
+.record-item .row .badge.ok{background:var(--success)}
+.record-item .record-actions{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
+.record-item .record-actions button{padding:4px 12px;font-size:.75rem;border:none;border-radius:6px;cursor:pointer;min-height:32px;font-weight:600}
+.record-item .record-actions .btn-edit-sm{background:rgba(15,59,94,.1);color:var(--primary)}
+.record-item .record-actions .btn-del-sm{background:rgba(231,76,60,.1);color:var(--danger)}
+.pagination-wrap{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.pagination-wrap button{padding:6px 14px;border:1px solid #e9ecef;border-radius:6px;background:#fff;cursor:pointer;font-size:.85rem;min-height:36px;min-width:36px}
+.pagination-wrap button:disabled{opacity:.4;pointer-events:none}
+.pagination-wrap .page-info{font-size:.85rem;color:var(--text-light)}
+.pareto-chart-wrap,.trend-chart-wrap{position:relative;width:100%;background:#fbfcfd;border:1px solid #eef2f6;border-radius:10px;overflow-x:auto;overflow-y:hidden}
+.pareto-chart-wrap{height:360px}
+.trend-chart-wrap{height:260px}
+#paretoCanvas,#trendCanvas{display:block;width:100%;height:100%}
+#paretoStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+#paretoStats .pareto-stat{background:#f8fafc;border:1px solid #eef2f6;border-radius:9px;padding:9px 10px;text-align:center}
+#paretoStats .pareto-stat .num{display:block;font-size:1.05rem;font-weight:800;color:var(--primary)}
+#paretoStats .pareto-stat .lbl{display:block;margin-top:2px;font-size:.68rem;color:var(--text-light);text-transform:uppercase}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.summary-card{background:#f8fafc;border:1px solid #eef2f6;border-radius:9px;padding:10px 8px;text-align:center}
+.summary-card .num{display:block;font-size:1.2rem;font-weight:800;color:var(--primary)}
+.summary-card .lbl{display:block;margin-top:2px;font-size:.6rem;color:var(--text-light);text-transform:uppercase}
+.summary-card .num.green{color:var(--success)}.summary-card .num.red{color:var(--danger)}.summary-card .num.orange{color:var(--accent)}
+.filter-scroll{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:10px;padding:4px 0 12px;-webkit-overflow-scrolling:touch}
+.filter-scroll .filter-item{flex:0 0 auto;min-width:120px;max-width:180px}
+.filter-scroll .filter-item label{display:block;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--text-light);margin-bottom:2px}
+.filter-scroll .filter-item .form-control{padding:6px 10px;font-size:.8rem;min-height:34px;border-radius:8px}
+.filter-scroll .filter-item .search-dropdown-wrap input[type="text"]{padding:6px 10px;font-size:.8rem;min-height:34px;border-radius:8px}
+.filter-scroll .filter-item .dropdown-list{max-height:150px}
+.divider{height:1px;background:#e9ecef;margin:18px 0}
+.text-center{text-align:center}
+.text-muted{color:var(--text-light);font-size:.85rem}
+.flex{display:flex}.flex-center{display:flex;align-items:center;justify-content:center}
+.gap-8{gap:8px}.gap-12{gap:12px}
+.hidden{display:none !important}
+.stage-group{margin-bottom:12px}
+.stage-group .stage-head{display:flex;align-items:center;justify-content:space-between;background:var(--primary);color:#fff;padding:7px 12px;border-radius:8px 8px 0 0;font-size:.78rem;font-weight:700}
+.stage-group .stage-head .stage-count{font-weight:400;opacity:.8;font-size:.7rem;margin-left:6px}
+.stage-group .stage-body{border:1px solid #eef2f6;border-top:none;border-radius:0 0 8px 8px;overflow:hidden;background:#f8fafc}
+.stage-group .stage-body .list-item{border-radius:0;margin-bottom:0;border:none;border-bottom:1px solid #eef2f6}
+.project-badge{display:inline-block;padding:0 8px;border-radius:10px;font-size:.65rem;font-weight:700;line-height:18px;background:#e8f0fe;color:var(--primary)}
+.project-badge.fakra{background:#fdeee0;color:#b9530c}
+.rework-badge{background:var(--danger);color:#fff;padding:1px 7px;border-radius:10px;font-size:.65rem;font-weight:700;margin-left:4px;cursor:pointer}
+.rework-badge.hidden{display:none}
+.age-b{font-size:.65rem;padding:1px 6px;border-radius:8px;background:#f1f3f5;color:var(--text-light);margin-left:6px}
+.age-b.w{background:#fdeee0;color:#b9530c}
+.age-b.d{background:#fde0e0;color:#c0392b}
+.pending-item{border-left:4px solid var(--accent)}
+.nc-entry{border:2px solid var(--accent);margin-bottom:12px;padding:14px 12px;background:#fffbf6}
+.nc-entry-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.nc-entry-head strong{color:var(--accent);font-size:.9rem}
+.week-card{cursor:pointer;transition:.15s}
+.week-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.week-card.sel{border-color:var(--primary);border-width:2px;background:#e8f0fe}
+.day-cell{padding:6px 2px;text-align:center;background:#f8fafc;border-radius:6px;border:1px solid #eef2f6}
+.day-cell .num{display:block;font-size:.9rem;font-weight:800;color:var(--primary)}
+.day-cell.has-nc .num{color:var(--danger)}
+.day-cell .lbl{display:block;font-size:.55rem;color:var(--text-light);text-transform:uppercase;margin-top:2px}
+@media (max-width:420px){
+.form-row{grid-template-columns:1fr;gap:0}
+.form-row .form-group{margin-bottom:14px}
+.logo-brand{min-width:44px;min-height:44px}
+.logo-brand img{max-height:36px}
+.header-title-group h1{font-size:.95rem}
+.header-title-group .header-subtitle{font-size:.6rem}
+.header-sync{font-size:.6rem;padding:2px 10px}
+.bottom-nav button{font-size:.6rem}
+.bottom-nav button i{font-size:1.1rem}
+.card{padding:14px 12px}
+.summary-grid{grid-template-columns:repeat(2,1fr)}
+.pareto-chart-wrap{height:300px}.trend-chart-wrap{height:200px}
+#paretoStats{grid-template-columns:1fr 1fr !important}
+#paretoStats .pareto-stat:last-child{grid-column:1/-1}
+.filter-scroll .filter-item{min-width:100px;max-width:140px}
+}
+@media (min-width:768px){
+.main-content{max-width:740px;margin:0 auto;padding:20px 20px 80px}
+.bottom-nav{max-width:740px;left:50%;transform:translateX(-50%);border-radius:16px 16px 0 0}
+.toast-container{max-width:480px;left:50%;transform:translateX(-50%)}
+}
+@media print{
+.app-header,.bottom-nav,.no-print{display:none !important}
+.main-content{padding:0 !important;overflow:visible !important}
+.page-section{display:block !important}
+.card{break-inside:avoid;box-shadow:none !important;border:1px solid #ddd}
+.filter-scroll{overflow:visible !important;flex-wrap:wrap}
+.edit-popup-overlay,.loading-overlay{display:none !important}
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+    <div class="header-left">
+        <div class="logo-brand"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR03Cg5hHYTWy1GdiJjRE3NGYHJxFLsi-GmKryl9C2sFg&s" alt="Logo" /></div>
+        <div class="header-title-group"><h1>Daily IHR Monitoring</h1><span class="header-subtitle">Quality Inspection System</span></div>
+    </div>
+    <span class="header-sync" id="syncStatus">
+        <i class="fas fa-circle" style="font-size:0.5rem;color:#27ae60;"></i> Synced
+        <button class="refresh-toggle" id="refreshToggle"><i class="fas fa-sync fa-fw"></i></button>
+        <span class="rework-badge hidden" id="reworkBadge">0</span>
+    </span>
+</header>
+
+<div class="toast-container" id="toastContainer"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner-big"></div><p>Loading...</p></div>
+
+<div class="edit-popup-overlay" id="editPopupOverlay">
+    <div class="edit-popup"><div class="popup-title"><i class="fas fa-edit"></i> Edit Record <button class="popup-close" id="editPopupClose">&times;</button></div><div id="editPopupBody"></div></div>
+</div>
+<div class="edit-popup-overlay" id="reworkPopupOverlay">
+    <div class="edit-popup"><div class="popup-title"><i class="fas fa-tools"></i> Rework Action <button class="popup-close" id="reworkPopupClose">&times;</button></div><div id="reworkPopupBody"></div></div>
+</div>
+
+<div class="main-content" id="mainContent">
+
+<section class="page-section active" id="pageMasters">
+    <div class="card" style="background:var(--light-bg);border:2px solid var(--primary)">
+        <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div><span id="editLockStatus" style="font-weight:600;color:var(--danger)">🔒 Editing is locked</span></div>
+            <button class="btn btn-primary btn-sm" id="toggleEditBtn"><i class="fas fa-unlock"></i> Unlock Edit</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-cogs"></i> Part Master</div>
+        <div class="form-group"><label>Part Number <span class="required">*</span></label><input type="text" class="form-control" id="partNumberInput" placeholder="e.g. PRT-1001" /></div>
+        <div class="form-group"><label>Part Description <span class="required">*</span></label><input type="text" class="form-control" id="partDescInput" placeholder="e.g. Bracket Assembly" /></div>
+        <div class="form-group"><label>Applicable Project <span class="required">*</span></label>
+            <select class="form-control" id="partProjectInput"><option value="Both" selected>Both</option><option value="Regular">Regular only</option><option value="FAKRA">FAKRA only</option></select>
+        </div>
+        <button class="btn btn-primary btn-block" id="addPartBtn" disabled><i class="fas fa-plus"></i> Add Part</button>
+        <div class="divider"></div>
+        <div id="partListContainer"><div class="empty-state"><i class="fas fa-box-open"></i><p>No parts added yet.</p></div></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-user-tie"></i> Inspector Master</div>
+        <div class="form-group"><label>Inspector Name <span class="required">*</span></label><input type="text" class="form-control" id="inspectorNameInput" placeholder="e.g. John Smith" /></div>
+        <button class="btn btn-primary btn-block" id="addInspectorBtn" disabled><i class="fas fa-plus"></i> Add Inspector</button>
+        <div class="divider"></div>
+        <div id="inspectorListContainer"><div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-tools"></i> Rework Person Master</div>
+        <div class="form-group"><label>Person Name <span class="required">*</span></label><input type="text" class="form-control" id="reworkPersonInput" placeholder="e.g. Ramesh" /></div>
+        <button class="btn btn-primary btn-block" id="addReworkPersonBtn" disabled><i class="fas fa-plus"></i> Add Rework Person</button>
+        <div class="divider"></div>
+        <div id="reworkPersonList"><div class="empty-state"><i class="fas fa-user-cog"></i><p>No rework persons added yet.</p></div></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-layer-group"></i> NC Stage Master</div>
+        <div class="form-group"><label>NC Stage Name <span class="required">*</span></label><input type="text" class="form-control" id="ncStageNameInput" placeholder="e.g. SOLDERING" /></div>
+        <button class="btn btn-primary btn-block" id="addNcStageBtn" disabled><i class="fas fa-plus"></i> Add NC Stage</button>
+        <div class="divider"></div>
+        <div id="ncStageListContainer"><div class="empty-state"><i class="fas fa-layer-group"></i><p>No NC stages added yet.</p></div></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-list-ul"></i> NC Defect Master</div>
+        <div class="form-group"><label>NC Stage <span class="required">*</span></label><select class="form-control" id="ncDefectStageSelect"><option value="">Select Stage</option></select></div>
+        <div class="form-group"><label>Defect Description <span class="required">*</span></label><input type="text" class="form-control" id="ncDefectNameInput" placeholder="e.g. Solder Bridge" /></div>
+        <button class="btn btn-primary btn-block" id="addNcDefectBtn" disabled><i class="fas fa-plus"></i> Add NC Defect</button>
+        <div class="divider"></div>
+        <div id="ncDefectListContainer"><div class="empty-state"><i class="fas fa-list-ul"></i><p>No NC defects added yet.</p></div></div>
+    </div>
+</section>
+
+<section class="page-section" id="pageInspection">
+    <div class="card">
+        <div class="card-title"><i class="fas fa-pen-alt"></i> Daily Inspection Entry</div>
+        <div class="form-row">
+            <div class="form-group"><label>Date <span class="required">*</span></label><input type="date" class="form-control" id="inspectionDate" /></div>
+            <div class="form-group"><label>Project <span class="required">*</span></label>
+                <select class="form-control" id="projectSelect"><option value="">Select</option><option value="Regular">Regular</option><option value="FAKRA">FAKRA</option></select>
+            </div>
+        </div>
+        <div class="form-group" style="margin-top:14px"><label>Shift <span class="required">*</span></label>
+            <select class="form-control" id="inspectionShift"><option value="">Select</option><option value="Genral">Genral</option><option value="Shift 1">Shift 1</option><option value="Shift 2">Shift 2</option><option value="Shift 3">Shift 3</option></select>
+        </div>
+        <div class="form-group"><label>Inspector Name <span class="required">*</span></label>
+            <div class="search-dropdown-wrap"><input type="text" class="form-control" id="inspectorSearchInput" placeholder="Type to search..." autocomplete="off" /><button class="dropdown-clear" id="inspectorClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="inspectorDropdownList"></div></div>
+        </div>
+        <div class="form-group"><label>Part Number <span class="required">*</span></label>
+            <div class="search-dropdown-wrap"><input type="text" class="form-control" id="partSearchInput" placeholder="Type part..." autocomplete="off" /><button class="dropdown-clear" id="partClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="partDropdownList"></div></div>
+        </div>
+        <div class="form-group"><label>Part Description</label><input type="text" class="form-control" id="partDescriptionDisplay" readonly placeholder="Auto-filled" /></div>
+        <div class="form-group"><label>Job No <span class="required">*</span></label><input type="text" class="form-control" id="jobNoInput" placeholder="e.g. JOB-2026-001" /></div>
+        <div class="form-group"><label>Operator Name <span class="required">*</span></label><input type="text" class="form-control" id="operatorNameInput" placeholder="Operator name" /></div>
+        <div class="form-group"><label>OK Qty (for this Job)</label><input type="number" class="form-control" id="okQtyInput" placeholder="0" min="0" /></div>
+        <div class="divider"></div>
+        <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+            <strong style="color:var(--primary);font-size:0.95rem"><i class="fas fa-exclamation-circle"></i> Rejections</strong>
+            <button type="button" class="btn btn-accent btn-sm" id="addNcBtn"><i class="fas fa-plus"></i> Add Another</button>
+        </div>
+        <div id="ncEntriesContainer"></div>
+        <button class="btn btn-success btn-block" id="submitEntryBtn" style="margin-top:14px"><i class="fas fa-check-circle"></i> Submit All</button>
+    </div>
+</section>
+
+<section class="page-section" id="pageRework">
+    <div class="card">
+        <div class="card-title"><i class="fas fa-user-cog"></i> Who is doing rework?</div>
+        <div class="search-dropdown-wrap"><input type="text" class="form-control" id="reworkPersonSearch" placeholder="Select your name..." autocomplete="off" /><div class="dropdown-list" id="reworkPersonDropdown"></div></div>
+    </div>
+    <div class="card" id="reworkStatsCard" style="display:none">
+        <div class="summary-grid" style="grid-template-columns:repeat(4,1fr)">
+            <div class="summary-card"><span class="num red" id="rwPending">0</span><span class="lbl">Pending</span></div>
+            <div class="summary-card"><span class="num green" id="rwDoneToday">0</span><span class="lbl">Done Today</span></div>
+            <div class="summary-card"><span class="num" id="rwScrapped">0</span><span class="lbl">Scrapped</span></div>
+            <div class="summary-card"><span class="num orange" id="rwRatio">0%</span><span class="lbl">Success Ratio</span></div>
+        </div>
+    </div>
+    <div class="card" id="reworkFilterCard" style="display:none">
+        <div class="card-title"><i class="fas fa-filter"></i> Filters</div>
+        <div class="flex gap-8" style="flex-wrap:wrap">
+            <select class="form-control" id="rwFilterProject" style="flex:1;min-width:120px"><option value="">All Projects</option><option value="Regular">Regular</option><option value="FAKRA">FAKRA</option></select>
+            <select class="form-control" id="rwFilterAge" style="flex:1;min-width:120px"><option value="">All Age</option><option value="today">Today</option><option value="1-2">1-2 days</option><option value="3-7">3-7 days</option><option value="7+">7+ days</option></select>
+        </div>
+    </div>
+    <div class="card" id="reworkListCard" style="display:none">
+        <div class="card-title"><i class="fas fa-list"></i> Pending Rework <span id="rwPendingCount" style="font-size:.8rem;color:var(--text-light);font-weight:400"></span></div>
+        <div id="reworkListContainer"></div>
+    </div>
+    <div class="card" id="scrapCard">
+        <div class="card-title"><i class="fas fa-trash-alt"></i> Scrap Register</div>
+        <div class="summary-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="summary-card"><span class="num red" id="scrapTotal">0</span><span class="lbl">Total Scrapped</span></div>
+            <div class="summary-card"><span class="num orange" id="scrapMonth">0</span><span class="lbl">This Month</span></div>
+            <div class="summary-card"><span class="num" id="scrapTopReason" style="font-size:.9rem">-</span><span class="lbl">Top Reason</span></div>
+        </div>
+        <div id="scrapListContainer" style="margin-top:12px"></div>
+    </div>
+</section>
+
+<section class="page-section" id="pageRecords">
+    <div class="card no-print">
+        <div class="card-title"><i class="fas fa-sliders-h"></i> Global Filters</div>
+        <div class="filter-scroll">
+            <div class="filter-item"><label>Project</label><select class="form-control" id="gFilterProject"><option value="">All</option><option value="Regular">Regular</option><option value="FAKRA">FAKRA</option></select></div>
+            <div class="filter-item"><label>From</label><input type="date" class="form-control" id="gFilterFrom" /></div>
+            <div class="filter-item"><label>To</label><input type="date" class="form-control" id="gFilterTo" /></div>
+            <div class="filter-item"><label>Shift</label><select class="form-control" id="gFilterShift"><option value="">All</option><option value="Genral">Genral</option><option value="Shift 1">Shift 1</option><option value="Shift 2">Shift 2</option><option value="Shift 3">Shift 3</option></select></div>
+            <div class="filter-item"><label>Operator</label><div class="search-dropdown-wrap"><input type="text" class="form-control" id="gFilterOperator" placeholder="All" autocomplete="off" /><button class="dropdown-clear" id="gFilterOperatorClear"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="gFilterOperatorList"></div></div></div>
+            <div class="filter-item"><label>Part Number</label><div class="search-dropdown-wrap"><input type="text" class="form-control" id="gFilterPart" placeholder="All" autocomplete="off" /><button class="dropdown-clear" id="gFilterPartClear"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="gFilterPartList"></div></div></div>
+            <div class="filter-item"><label>NC Stage</label><select class="form-control" id="gFilterNcStage"><option value="">All</option></select></div>
+            <div class="filter-item"><label>NC Part</label><select class="form-control" id="gFilterNcPart"><option value="">All</option></select></div>
+            <div class="filter-item"><label>Part Detail</label><input type="text" class="form-control" id="gFilterNcPartDetail" placeholder="Terminal/Wire No." /></div>
+            <div class="filter-item"><label>Disposition</label><select class="form-control" id="gFilterDisposition"><option value="">All</option><option value="Rework">Rework</option><option value="Reject">Reject</option><option value="Accept under Deviation">Accept under Deviation</option></select></div>
+            <div class="filter-item"><label>Status</label><select class="form-control" id="gFilterStatus"><option value="">All</option><option value="Pending for Rework">Pending for Rework</option><option value="Rework Done">Rework Done</option><option value="Scrapped">Scrapped</option></select></div>
+            <div class="filter-item"><label>Job No</label><input type="text" class="form-control" id="gFilterJob" placeholder="Job No." /></div>
+        </div>
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-top:8px">
+            <button class="btn btn-primary btn-sm" id="gFilterApply"><i class="fas fa-filter"></i> Apply</button>
+            <button class="btn btn-accent btn-sm" id="gFilterReset"><i class="fas fa-undo"></i> Reset</button>
+            <button class="btn btn-success btn-sm" id="gFilterExport"><i class="fas fa-file-excel"></i> Export</button>
+            <button class="btn btn-outline btn-sm" id="gFilterPrint"><i class="fas fa-print"></i> Print</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-chart-simple"></i> Summary Dashboard</div>
+        <div class="summary-grid">
+            <div class="summary-card"><span class="num" id="sumEntries">0</span><span class="lbl">Entries</span></div>
+            <div class="summary-card"><span class="num green" id="sumOk">0</span><span class="lbl">OK Qty</span></div>
+            <div class="summary-card"><span class="num red" id="sumNc">0</span><span class="lbl">NC Qty</span></div>
+            <div class="summary-card"><span class="num orange" id="sumRejPct">0%</span><span class="lbl">Rejection %</span></div>
+            <div class="summary-card"><span class="num" id="sumTopDefect" style="font-size:1rem">-</span><span class="lbl">Top Defect</span></div>
+            <div class="summary-card"><span class="num" id="sumTopPart" style="font-size:1rem">-</span><span class="lbl">Top Part</span></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-calendar-week"></i> Weekly Breakdown</div>
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:14px">
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0"><label>Month</label><input type="month" class="form-control" id="weeklyMonth" /></div>
+            <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0"><label>Area / Department</label>
+                <select class="form-control" id="weeklyArea">
+                    <option value="">All Areas</option>
+                    <option value="FAKRA_All">FAKRA</option>
+                    <option value="Regular_CrimpArea">Regular - Crimp Area</option>
+                    <option value="Regular_Insert&TapeArea">Regular - Insert &amp; Tape</option>
+                    <option value="Regular_Test&FinalArea">Regular - Test &amp; Final</option>
+                </select>
+            </div>
+        </div>
+        <div class="summary-grid" id="weeklyStats" style="grid-template-columns:repeat(4,1fr)"></div>
+        <div id="dayBreakdown" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-chart-line"></i> Trend</div>
+        <div class="trend-chart-wrap"><canvas id="trendCanvas"></canvas></div>
+        <div class="flex gap-8" style="margin-top:8px;flex-wrap:wrap">
+            <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0"><label>Group By</label><select class="form-control" id="trendGroupBy" style="padding:6px 10px;min-height:34px;font-size:.85rem"><option value="month">Month</option><option value="week">Week</option></select></div>
+            <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0"><label>Metric</label><select class="form-control" id="trendMetric" style="padding:6px 10px;min-height:34px;font-size:.85rem"><option value="nc">NC Qty</option><option value="rejPct">Rejection %</option></select></div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i> Pareto Analysis</div>
+        <div class="text-muted" style="margin-bottom:12px">Defects ranked highest to lowest.</div>
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:12px">
+            <div class="form-group" style="flex:1;min-width:150px;margin-bottom:0"><label>Analyze By</label><select class="form-control" id="paretoDimension"><option value="ncDescription">Defect Reason</option><option value="ncStage">NC Stage</option><option value="ncPart">NC Part</option><option value="partNumber">Part Number</option><option value="operatorName">Operator</option><option value="requiredDisposition">Disposition</option><option value="ncPartDetail">Part Detail</option><option value="jobNo">Job No</option><option value="project">Project</option><option value="month">Month</option></select></div>
+            <div class="form-group" style="flex:1;min-width:150px;margin-bottom:0"><label>Show</label><select class="form-control" id="paretoLimit"><option value="all">All</option><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option></select></div>
+        </div>
+        <div id="paretoStats"></div>
+        <div class="pareto-chart-wrap"><canvas id="paretoCanvas"></canvas></div>
+        <div id="paretoInsight" class="text-muted" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-calendar-alt"></i> Monthly Summary</div>
+        <div id="monthlySummaryContainer"><div class="empty-state"><i class="fas fa-chart-pie"></i><p>No data yet.</p></div></div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-history"></i> Records</div>
+        <div class="flex gap-8" style="flex-wrap:wrap;margin-bottom:14px">
+            <div class="form-group" style="flex:1;min-width:100px;margin-bottom:0"><label>Part</label><input type="text" class="form-control" id="listFilterPart" placeholder="Part..." style="padding:6px 10px;min-height:34px;font-size:.85rem" /></div>
+            <div class="form-group" style="flex:1;min-width:100px;margin-bottom:0"><label>Operator</label><input type="text" class="form-control" id="listFilterOperator" placeholder="Operator..." style="padding:6px 10px;min-height:34px;font-size:.85rem" /></div>
+            <div class="form-group" style="flex:1;min-width:100px;margin-bottom:0"><label>NC Stage</label><select class="form-control" id="listFilterNcStage" style="padding:6px 10px;min-height:34px;font-size:.85rem"><option value="">All</option></select></div>
+            <div class="form-group" style="flex:1;min-width:100px;margin-bottom:0"><label>NC Desc</label><input type="text" class="form-control" id="listFilterNcDesc" placeholder="Defect..." style="padding:6px 10px;min-height:34px;font-size:.85rem" /></div>
+            <div class="form-group" style="flex:1;min-width:80px;margin-bottom:0"><label>Job</label><input type="text" class="form-control" id="listFilterJob" placeholder="Job..." style="padding:6px 10px;min-height:34px;font-size:.85rem" /></div>
+            <button class="btn btn-primary btn-sm" id="listFilterApply" style="align-self:flex-end"><i class="fas fa-search"></i></button>
+            <button class="btn btn-accent btn-sm" id="listFilterReset" style="align-self:flex-end"><i class="fas fa-undo"></i></button>
+        </div>
+        <div id="recordsListContainer"><div class="empty-state"><i class="fas fa-inbox"></i><p>No records found.</p></div></div>
+        <div class="pagination-wrap"><button id="pagePrev"><i class="fas fa-chevron-left"></i></button><span class="page-info" id="pageInfo">Page 1 of 1</span><button id="pageNext"><i class="fas fa-chevron-right"></i></button></div>
+    </div>
+</section>
+
+</div>
+
+<nav class="bottom-nav" id="bottomNav">
+    <button class="active" data-page="pageMasters"><i class="fas fa-database"></i><span>Masters</span></button>
+    <button data-page="pageInspection"><i class="fas fa-clipboard-list"></i><span>Inspection</span></button>
+    <button data-page="pageRework"><i class="fas fa-tools"></i><span>Rework</span></button>
+    <button data-page="pageRecords"><i class="fas fa-chart-bar"></i><span>Records</span></button>
+</nav>
+
+<script>
+const CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbxagkj38DlGxue2uJScl214SzbDHg8DNN5PLm0fGyDuZog5RKpDbykEybFtdxmdJZgSwg/exec',
+    STORAGE_KEYS: { parts:'ihr_parts', inspectors:'ihr_inspectors', records:'ihr_records', ncStages:'ihr_nc_stages', ncDefects:'ihr_nc_defects', reworkPersons:'ihr_rework_persons' },
+    EDIT_PASSWORD: 'ahtqa2026',
+    POLL_INTERVAL: 15000,
+    PAGE_SIZE: 20,
+    REQUEST_TIMEOUT: 15000,
+    LOADING_SAFETY_MS: 45000
+};
+const PROJECTS = ['Regular','FAKRA'];
+const normalizeProject = p => PROJECTS.includes(p) ? p : 'Regular';
+const readProject = o => !o ? 'Regular' : normalizeProject(o.project || o.plant);
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function toTitleCase(s) { if (s === null || s === undefined) return ''; return String(s).trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|[\s\.\-'])([a-z])/g,(_,p1,p2)=>p1+p2.toUpperCase()); }
+function normalizeKey(s) { if (s === null || s === undefined) return ''; return String(s).replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
+const eqIgnoreCase = (a,b) => normalizeKey(a) === normalizeKey(b);
+function escapeHtml(s) { if (s === null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+function highlightText(text, q) { const e = escapeHtml(text), qe = escapeHtml(q); const rx = new RegExp(`(${qe.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi'); return e.replace(rx,'<span class="highlight">$1</span>'); }
+function generateId() { return 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2,6); }
+function loadFromStorage(k) { try { const d = localStorage.getItem(k); return d ? JSON.parse(d) : null; } catch { return null; } }
+function saveToStorage(k, d) { try { localStorage.setItem(k, JSON.stringify(d)); } catch {} }
+function toDateString(di) {
+    if (!di) return '';
+    let d;
+    if (typeof di === 'string') {
+        if (di.includes('-')) { const p = di.split('-'); if (p.length===3) d = new Date(+p[0], +p[1]-1, +p[2]); else d = new Date(di); }
+        else if (di.includes('/')) { const p = di.split('/'); if (p.length===3) { const m=+p[0],day=+p[1],y=+p[2]; if (m>=1&&m<=12&&day>=1&&day<=31) d=new Date(y,m-1,day); else d=new Date(di); } else d=new Date(di); }
+        else d = new Date(di);
+    } else if (di instanceof Date) d = di;
+    else d = new Date(di);
+    if (isNaN(d)) return '';
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const STAGE_TO_NC_PART = { 'WIRE CUTTING':'Wire','CRIMPING':'Terminal','NAVIGATION & INSERTION':'Terminal','HST SLEEVE INSERTION':'Other','GROMMATE INSERTION':'Other','TAPING':'Other','TESTING':'Other','FINAL INSPECTION':'Other' };
+function getEffectiveNcPart(r) { const e = (r && r.ncPart || '').trim(); if (e) return e; const st = normalizeKey(r && r.ncStage); for (const k of Object.keys(STAGE_TO_NC_PART)) if (normalizeKey(k) === st) return STAGE_TO_NC_PART[k]; return 'Other'; }
+const BASE_NC_PARTS = ['Wire','Terminal','Connector','Other'];
+function getUniqueNcParts() { const seen = new Set(BASE_NC_PARTS.map(normalizeKey)), out = BASE_NC_PARTS.slice(); (state.records||[]).forEach(r => { const v=(r.ncPart||'').trim(); if(!v) return; const k=normalizeKey(v); if(!seen.has(k)){seen.add(k);out.push(v);} }); return out; }
+const REWORK_PENDING = 'Pending for Rework';
+const REWORK_DONE = 'Rework Done';
+const REWORK_SCRAPPED = 'Scrapped';
+function getRecordStatus(r) { if (r.status) return r.status; if (eqIgnoreCase(r.requiredDisposition,'Rework')) return REWORK_PENDING; if (eqIgnoreCase(r.requiredDisposition,'Reject')) return REWORK_SCRAPPED; if (eqIgnoreCase(r.requiredDisposition,'Accept under Deviation')) return 'Accepted with Deviation'; return 'OK'; }
+function getStatusColor(r) { const s = getRecordStatus(r); if (s === REWORK_PENDING) return 'var(--accent)'; if (s === REWORK_SCRAPPED) return 'var(--danger)'; if (s === REWORK_DONE) return 'var(--success)'; return 'var(--primary)'; }
+function getRecordAge(r) { if (!r.timestamp) return 0; const d = new Date(r.timestamp); if (isNaN(d)) return 0; return Math.floor((Date.now() - d) / 86400000); }
+function ageBadge(r) { const a = getRecordAge(r); if (a <= 0) return `<span class="age-b">Today</span>`; if (a <= 2) return `<span class="age-b">${a}d</span>`; if (a <= 7) return `<span class="age-b w">${a}d</span>`; return `<span class="age-b d">${a}d ⚠️</span>`; }
+const DEFAULT_NC_STAGES = ['WIRE CUTTING','CRIMPING','HST SLEEVE INSERTION','GROMMATE INSERTION','NAVIGATION & INSERTION','TAPING','TESTING','FINAL INSPECTION'];
+const DEFAULT_NC_DEFECTS = { 'WIRE CUTTING':['Wire Damage','Long length','Short length','Wrong CS wire','Wrong Colour wire'],'CRIMPING':['High Core Crimping','Low Core Crimping','Insulation Damage','Crimp on upper side','Crimp on lower side','Stand Out Crimping','Terminal missed','Wrong joint','Wire Missed in joint','Terminal twist','Cut-off tab above 0.5','Rubber seal damage','Insulation crimp lance damage'],'HST SLEEVE INSERTION':['HST Missing','SLEEVE Missing','Shrinking Missing','Shrinking not Proper'],'GROMMATE INSERTION':['GROMATE Missing','Wrong Gromate Insertion'],'NAVIGATION & INSERTION':['Terminal bend','Connector Damage','Rubber seal damage'],'TAPING':['Branch Open'],'TESTING':['Interchange','Short Point','Open Point'],'FINAL INSPECTION':['Backout','Flash in connector','Low insulation crimp','Connector lock or tab issue'] };
+let state = { parts: [], inspectors: [], records: [], ncStages: [], ncDefects: {}, reworkPersons: [], selectedPartId: null, selectedInspectorId: null, selectedNcDesc: null, selectedReworkPerson: '', isSubmitting: false, editMode: false, autoRefresh: true, filteredRecords: [] };
+let ncEntryCounter = 0;
+let _selectedWeek = null;
+
+function showToast(msg, type='info', dur=3500) {
+    const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
+    const colors = { success:'toast-success', error:'toast-error', warning:'toast-warning', info:'' };
+    const t = document.createElement('div');
+    t.className = `toast ${colors[type]||''}`;
+    t.innerHTML = `<i class="fas ${icons[type]||icons.info}"></i><span>${escapeHtml(msg)}</span><button class="toast-close"><i class="fas fa-times"></i></button>`;
+    t.querySelector('.toast-close').addEventListener('click',()=>t.remove());
+    $('#toastContainer').appendChild(t);
+    setTimeout(()=>{ if(t.parentNode) t.remove(); }, dur);
+}
+let loadingTimer = null;
+function showLoading(msg='Loading...') { $('#loadingOverlay').querySelector('p').textContent = msg; $('#loadingOverlay').classList.add('active'); clearTimeout(loadingTimer); loadingTimer = setTimeout(()=>{ hideLoading(); showToast('Operation took too long.', 'warning'); }, CONFIG.LOADING_SAFETY_MS); }
+function hideLoading() { clearTimeout(loadingTimer); $('#loadingOverlay').classList.remove('active'); }
+function setSyncStatus(status, text) {
+    const el = $('#syncStatus'); el.className = 'header-sync';
+    if (status === 'synced') el.classList.add('synced');
+    else if (status === 'syncing') el.classList.add('syncing');
+    const icon = status === 'syncing' ? '<i class="fas fa-spinner fa-pulse"></i>' : (status === 'synced' ? '<i class="fas fa-circle" style="font-size:0.5rem;color:#27ae60;"></i>' : '<i class="fas fa-circle" style="font-size:0.5rem;color:#e67e22;"></i>');
+    el.innerHTML = `${icon} ${escapeHtml(text||'Synced')}<button class="refresh-toggle${state.autoRefresh?'':' off'}" id="refreshToggle"><i class="fas fa-sync fa-fw"></i></button><span class="rework-badge hidden" id="reworkBadge">0</span>`;
+    const b = document.getElementById('refreshToggle'); if (b) b.addEventListener('click', toggleAutoRefresh);
+    updateReworkBadge();
+}
+function updateReworkBadge() { const b = document.getElementById('reworkBadge'); if (!b) return; const c = (state.records||[]).filter(r => getRecordStatus(r) === REWORK_PENDING).length; b.textContent = c; b.classList.toggle('hidden', c === 0); b.onclick = () => navigateTo('pageRework'); }
+function toggleAutoRefresh() { state.autoRefresh = !state.autoRefresh; setSyncStatus(state.autoRefresh ? 'synced' : 'idle', state.autoRefresh ? 'Synced' : 'Manual'); showToast(state.autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF', 'info', 1500); }
+const pendingReqs = new Map();
+function abortPending() { pendingReqs.forEach(({cleanup})=>{try{cleanup()}catch{}}); pendingReqs.clear(); }
+function jsonpRequest(action, payload = {}, timeout = CONFIG.REQUEST_TIMEOUT) {
+    return new Promise((res, rej) => {
+        const cb = '__ihr_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const s = document.createElement('script');
+        const params = new URLSearchParams({ action, callback: cb });
+        Object.entries(payload||{}).forEach(([k,v]) => { if (v === undefined || v === null) params.set(k,''); else if (typeof v === 'object') params.set(k, JSON.stringify(v)); else params.set(k, String(v)); });
+        let done = false, timer;
+        const cleanup = () => { if (done) return; done = true; clearTimeout(timer); if (s.parentNode) s.parentNode.removeChild(s); try { delete window[cb]; } catch { window[cb] = undefined; } pendingReqs.delete(cb); };
+        timer = setTimeout(() => { cleanup(); rej(new Error('Request timed out')); }, timeout);
+        window[cb] = (data) => { if (done) return; cleanup(); res(data); };
+        s.onerror = () => { if (done) return; cleanup(); rej(new Error('API request failed')); };
+        s.async = true; s.src = CONFIG.API_URL + '?' + params.toString();
+        document.head.appendChild(s);
+        pendingReqs.set(cb, { cleanup });
+    });
+}
+async function apiCall(action, payload = {}) { try { return await jsonpRequest(action, payload); } catch (e) { console.warn('API call failed:', e); return { success:false, error: e.message }; } }
+async function apiFetch(action) { try { return { success:true, data: await jsonpRequest(action) }; } catch (e) { console.warn('API fetch failed:', e); return { success:false, error: e.message }; } }
+
+function createNcEntryHtml(idx) {
+    return `<div class="nc-entry" data-nceid="${idx}">
+        <div class="nc-entry-head"><strong><i class="fas fa-times-circle"></i> Rejection #<span class="nc-num">${idx}</span></strong><button type="button" class="btn btn-danger btn-sm nc-remove"><i class="fas fa-trash"></i></button></div>
+        <div class="form-row"><div class="form-group"><label>NC Qty <span class="required">*</span></label><input type="number" class="form-control nc-qty" min="1" step="1" placeholder="0" /></div><div class="form-group"><label>NC Stage <span class="required">*</span></label><select class="form-control nc-stage"><option value="">Select</option></select></div></div>
+        <div class="form-group" style="margin-top:14px"><label>NC Part <span class="required">*</span></label><select class="form-control nc-part"><option value="">Select Part</option><option value="Wire">Wire</option><option value="Terminal">Terminal</option><option value="Connector">Connector</option><option value="Other">Other</option></select></div>
+        <div class="form-group hidden nc-part-detail-group"><label class="nc-part-detail-label">Detail</label><input type="text" class="form-control nc-part-detail" placeholder="Enter..." /></div>
+        <div class="form-group"><label>NC Description <span class="required">*</span></label><select class="form-control nc-desc"><option value="">Select stage first</option></select></div>
+        <div class="form-group hidden nc-custom-group"><label>Custom NC Description</label><input type="text" class="form-control nc-custom" placeholder="Describe defect..." /></div>
+        <div class="form-group"><label>Disposition <span class="required">*</span></label><select class="form-control nc-disposition"><option value="">Select</option><option value="Rework">Rework</option><option value="Reject">Reject</option><option value="Accept under Deviation">Accept under Deviation</option></select></div>
+        <div class="form-group"><label>Remarks</label><textarea class="form-control nc-remarks" rows="1" placeholder="Optional"></textarea></div>
+        <div class="form-group"><label>Action Taken</label><textarea class="form-control nc-action" rows="1" placeholder="Optional"></textarea></div>
+    </div>`;
+}
+function addNcEntry() {
+    ncEntryCounter++;
+    const c = $('#ncEntriesContainer');
+    const w = document.createElement('div');
+    w.innerHTML = createNcEntryHtml(ncEntryCounter).trim();
+    const entry = w.firstChild;
+    c.appendChild(entry);
+    setupNcEntry(entry);
+    updateNcEntryNumbers();
+}
+function setupNcEntry(entry) {
+    const stageSel = entry.querySelector('.nc-stage');
+    stageSel.innerHTML = '<option value="">Select Stage</option>' + state.ncStages.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    stageSel.addEventListener('change', () => {
+        const sel = stageSel.value;
+        const dSel = entry.querySelector('.nc-desc');
+        if (!sel || !Array.isArray(state.ncDefects[sel])) { dSel.innerHTML = '<option value="">Select stage first</option>'; return; }
+        const opts = state.ncDefects[sel].map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+        dSel.innerHTML = `<option value="">Select Defect</option>${opts}<option value="__custom__">Other (Custom)</option>`;
+        entry.querySelector('.nc-custom-group').classList.add('hidden');
+        entry.querySelector('.nc-custom').value = '';
+    });
+    entry.querySelector('.nc-part').addEventListener('change', () => {
+        const v = entry.querySelector('.nc-part').value;
+        const g = entry.querySelector('.nc-part-detail-group'), l = entry.querySelector('.nc-part-detail-label'), i = entry.querySelector('.nc-part-detail');
+        if (!v) { g.classList.add('hidden'); i.value = ''; return; }
+        if (v === 'Terminal') { l.textContent = 'Terminal Number'; i.placeholder = 'Enter terminal number...'; }
+        else if (v === 'Wire') { l.textContent = 'Wire Information'; i.placeholder = 'Enter wire number / gauge...'; }
+        else if (v === 'Connector') { l.textContent = 'Connector Number'; i.placeholder = 'Enter connector number...'; }
+        else { l.textContent = 'Detail'; i.placeholder = 'Enter detail...'; }
+        g.classList.remove('hidden');
+    });
+    entry.querySelector('.nc-desc').addEventListener('change', () => {
+        const v = entry.querySelector('.nc-desc').value;
+        const cg = entry.querySelector('.nc-custom-group');
+        if (v === '__custom__') { cg.classList.remove('hidden'); entry.querySelector('.nc-custom').focus(); }
+        else { cg.classList.add('hidden'); entry.querySelector('.nc-custom').value = ''; }
+    });
+    entry.querySelector('.nc-remove').addEventListener('click', () => {
+        if ($('#ncEntriesContainer').querySelectorAll('.nc-entry').length <= 1) { showToast('At least one rejection required.', 'warning'); return; }
+        entry.remove(); updateNcEntryNumbers();
+    });
+}
+function updateNcEntryNumbers() { $$('#ncEntriesContainer .nc-entry').forEach((e, i) => { e.querySelector('.nc-num').textContent = i + 1; }); }
+function initNcEntries() { $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry(); $('#addNcBtn').addEventListener('click', () => addNcEntry()); }
+function refreshAllNcEntries() {
+    $$('#ncEntriesContainer .nc-entry').forEach(entry => {
+        const s = entry.querySelector('.nc-stage'); const cur = s.value;
+        s.innerHTML = '<option value="">Select Stage</option>' + state.ncStages.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
+        if (state.ncStages.includes(cur)) s.value = cur;
+    });
+}
+function collectNcEntries() {
+    const arr = [];
+    $$('#ncEntriesContainer .nc-entry').forEach(e => {
+        arr.push({
+            qty: parseInt(e.querySelector('.nc-qty').value) || 0,
+            stage: e.querySelector('.nc-stage').value.trim(),
+            part: e.querySelector('.nc-part').value.trim(),
+            partDetail: e.querySelector('.nc-part-detail').value.trim(),
+            description: e.querySelector('.nc-desc').value.trim(),
+            custom: e.querySelector('.nc-custom').value.trim(),
+            disposition: e.querySelector('.nc-disposition').value.trim(),
+            remarks: e.querySelector('.nc-remarks').value.trim(),
+            action: e.querySelector('.nc-action').value.trim()
+        });
+    });
+    return arr;
+}
+function loadNcMastersLocal() {
+    let s = loadFromStorage(CONFIG.STORAGE_KEYS.ncStages);
+    let d = loadFromStorage(CONFIG.STORAGE_KEYS.ncDefects);
+    if (!Array.isArray(s) || !s.length) s = DEFAULT_NC_STAGES.slice();
+    if (!d || typeof d !== 'object') d = JSON.parse(JSON.stringify(DEFAULT_NC_DEFECTS));
+    s.forEach(x => { if (!Array.isArray(d[x])) d[x] = []; });
+    state.ncStages = s; state.ncDefects = d;
+}
+function persistNcMasters() { saveToStorage(CONFIG.STORAGE_KEYS.ncStages, state.ncStages); saveToStorage(CONFIG.STORAGE_KEYS.ncDefects, state.ncDefects); }
+function getAllNcDescriptionsUnique() { const out = []; Object.values(state.ncDefects||{}).forEach(arr => (arr||[]).forEach(d => { if (!out.includes(d)) out.push(d); })); return out; }
+function renderNcStageOptions() {
+    const build = ph => `<option value="">${ph}</option>` + state.ncStages.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    ['gFilterNcStage','listFilterNcStage','ncDefectStageSelect'].forEach(id => {
+        const el = $('#'+id); if (!el) return;
+        const cur = el.value; el.innerHTML = build(id === 'ncDefectStageSelect' ? 'Select Stage' : 'All');
+        if (state.ncStages.includes(cur)) el.value = cur;
+    });
+    refreshAllNcEntries();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+async function init() {
+    $('#inspectionDate').value = new Date().toISOString().slice(0,10);
+    $('#weeklyMonth').value = new Date().toISOString().slice(0,7);
+    state.parts = (loadFromStorage(CONFIG.STORAGE_KEYS.parts)||[]).map(p=>({...p,project:p.project||p.plant||'Both'}));
+    state.inspectors = (loadFromStorage(CONFIG.STORAGE_KEYS.inspectors)||[]).map(i=>({...i,inspectorName:toTitleCase(i.inspectorName||'')}));
+    state.records = loadFromStorage(CONFIG.STORAGE_KEYS.records)||[];
+    state.reworkPersons = (loadFromStorage(CONFIG.STORAGE_KEYS.reworkPersons)||[]).map(p=>({...p,personName:toTitleCase(p.personName||'')}));
+    loadNcMastersLocal();
+    renderAll();
+    await Promise.all([syncMasters(), loadRecords()]);
+    await loadReworkPersons();
+
+    setupSearchDropdown($('#inspectorSearchInput'), $('#inspectorDropdownList'), $('#inspectorClearBtn'), renderInspectorDropdown);
+    setupSearchDropdown($('#partSearchInput'), $('#partDropdownList'), $('#partClearBtn'), renderPartDropdown);
+    setupGlobalSearch($('#gFilterOperator'), $('#gFilterOperatorList'), $('#gFilterOperatorClear'), renderGlobalFilterDropdowns);
+    setupGlobalSearch($('#gFilterPart'), $('#gFilterPartList'), $('#gFilterPartClear'), renderGlobalFilterDropdowns);
+    initNcEntries();
+
+    $('#reworkPersonSearch').addEventListener('focus', () => { renderReworkPersonDropdown($('#reworkPersonSearch').value); $('#reworkPersonDropdown').classList.add('open'); });
+    $('#reworkPersonSearch').addEventListener('input', () => { renderReworkPersonDropdown($('#reworkPersonSearch').value); $('#reworkPersonDropdown').classList.add('open'); });
+
+    $('#reworkPopupClose').addEventListener('click', () => $('#reworkPopupOverlay').classList.remove('active'));
+    $('#reworkPopupOverlay').addEventListener('click', e => { if (e.target === $('#reworkPopupOverlay')) $('#reworkPopupOverlay').classList.remove('active'); });
+    $('#editPopupClose').addEventListener('click', () => $('#editPopupOverlay').classList.remove('active'));
+    $('#editPopupOverlay').addEventListener('click', e => { if (e.target === $('#editPopupOverlay')) $('#editPopupOverlay').classList.remove('active'); });
+    $('#loadingOverlay').addEventListener('click', () => hideLoading());
+
+    setupFormEvents();
+    $$('#bottomNav button').forEach(b => b.addEventListener('click', () => navigateTo(b.dataset.page)));
+    $('#addPartBtn').addEventListener('click', addPart);
+    $('#addInspectorBtn').addEventListener('click', addInspector);
+    $('#addNcStageBtn').addEventListener('click', addNcStage);
+    $('#addNcDefectBtn').addEventListener('click', addNcDefect);
+    $('#addReworkPersonBtn').addEventListener('click', addReworkPerson);
+    $('#submitEntryBtn').addEventListener('click', submitEntry);
+    $('#toggleEditBtn').addEventListener('click', toggleEdit);
+    $('#gFilterApply').addEventListener('click', applyGlobalFilters);
+    $('#gFilterReset').addEventListener('click', resetGlobalFilters);
+    $('#gFilterExport').addEventListener('click', exportExcel);
+    $('#gFilterPrint').addEventListener('click', () => window.print());
+    ['gFilterProject','gFilterShift','gFilterNcStage','gFilterNcPart','gFilterDisposition','gFilterStatus','gFilterFrom','gFilterTo'].forEach(id => $('#'+id).addEventListener('change', applyGlobalFilters));
+    ['trendGroupBy','trendMetric','paretoDimension','paretoLimit'].forEach(id => $('#'+id).addEventListener('change', applyGlobalFilters));
+    $('#weeklyMonth').addEventListener('change', renderWeeklyDashboard);
+    $('#weeklyArea').addEventListener('change', renderWeeklyDashboard);
+    $('#rwFilterProject').addEventListener('change', renderReworkPage);
+    $('#rwFilterAge').addEventListener('change', renderReworkPage);
+    $('#pagePrev').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderRecordsList(state.filteredRecords); } });
+    $('#pageNext').addEventListener('click', () => { const tp = Math.ceil(listFilteredRecords.length / CONFIG.PAGE_SIZE) || 1; if (currentPage < tp) { currentPage++; renderRecordsList(state.filteredRecords); } });
+    $('#listFilterApply').addEventListener('click', () => { currentPage = 1; renderRecordsList(state.filteredRecords); });
+    $('#listFilterReset').addEventListener('click', () => { ['listFilterPart','listFilterOperator','listFilterNcDesc','listFilterJob'].forEach(id => $('#'+id).value = ''); $('#listFilterNcStage').value = ''; currentPage = 1; renderRecordsList(state.filteredRecords); });
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            if ($('#pageInspection').classList.contains('active')) { e.preventDefault(); submitEntry(); }
+        }
+    });
+    setInterval(() => {
+        if (navigator.onLine && state.autoRefresh && !isUserBusy()) {
+            syncMasters(true);
+            if ($('#pageRecords').classList.contains('active')) loadRecords(true);
+        }
+    }, CONFIG.POLL_INTERVAL);
+    window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); });
+    window.addEventListener('offline', () => { setSyncStatus('offline','Offline'); showToast('Offline. Data cached.', 'warning', 3000); });
+    let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if ($('#pageRecords').classList.contains('active')) applyGlobalFilters(); }, 300); });
+    navigateTo('pageRecords');
+    console.log('✅ IHR initialized');
+}
+function isUserBusy() {
+    if (state.isSubmitting) return true;
+    if ($('#editPopupOverlay').classList.contains('active')) return true;
+    if ($('#reworkPopupOverlay').classList.contains('active')) return true;
+    if ($('#loadingOverlay').classList.contains('active')) return true;
+    if (document.querySelector('.search-dropdown-wrap .dropdown-list.open')) return true;
+    return false;
+}
+function navigateTo(pageId) {
+    $$('.page-section').forEach(el => el.classList.remove('active'));
+    const t = document.getElementById(pageId); if (t) t.classList.add('active');
+    $$('#bottomNav button').forEach(b => b.classList.toggle('active', b.dataset.page === pageId));
+    $('#mainContent').scrollTop = 0;
+    $$('.dropdown-list').forEach(dl => dl.classList.remove('open'));
+    if (pageId === 'pageRecords') { loadRecords(); setTimeout(() => { applyGlobalFilters(); renderWeeklyDashboard(); }, 100); }
+    if (pageId === 'pageInspection' && !$('#inspectionDate').value) $('#inspectionDate').value = new Date().toISOString().slice(0,10);
+    if (pageId === 'pageMasters') { renderNcStageOptions(); renderDropdowns(); }
+    if (pageId === 'pageRework') { if (state.selectedReworkPerson) showReworkContent(); renderScrapDashboard((state.records||[]).filter(r => getRecordStatus(r) === REWORK_SCRAPPED)); }
+}
+function setupSearchDropdown(input, list, clearBtn, renderFn) {
+    input.addEventListener('focus', () => { renderFn(input.value); list.classList.add('open'); });
+    input.addEventListener('input', () => { renderFn(input.value); list.classList.add('open'); clearBtn.classList.toggle('visible', input.value.length > 0);
+        if (input.value === '') {
+            if (input.id === 'partSearchInput') { state.selectedPartId = null; $('#partDescriptionDisplay').value = ''; }
+            else if (input.id === 'inspectorSearchInput') state.selectedInspectorId = null;
+        }
+    });
+    clearBtn.addEventListener('click', () => { input.value = ''; clearBtn.classList.remove('visible'); list.classList.remove('open');
+        if (input.id === 'partSearchInput') { state.selectedPartId = null; $('#partDescriptionDisplay').value = ''; }
+        else if (input.id === 'inspectorSearchInput') state.selectedInspectorId = null;
+        input.focus(); renderFn('');
+    });
+    document.addEventListener('click', e => { const w = input.closest('.search-dropdown-wrap'); if (w && !w.contains(e.target)) list.classList.remove('open'); });
+    input.addEventListener('keydown', e => { if (e.key === 'Escape') list.classList.remove('open'); if (e.key === 'Enter') { const f = list.querySelector('.dropdown-item'); if (f) f.click(); } });
+}
+function setupGlobalSearch(input, list, clearBtn, renderFn) {
+    input.addEventListener('focus', () => { renderFn(); list.classList.add('open'); });
+    input.addEventListener('input', () => { renderFn(); list.classList.add('open'); clearBtn.classList.toggle('visible', input.value.length > 0); });
+    clearBtn.addEventListener('click', () => { input.value = ''; clearBtn.classList.remove('visible'); list.classList.remove('open'); renderFn(); input.focus(); });
+    document.addEventListener('click', e => { const w = input.closest('.search-dropdown-wrap'); if (w && !w.contains(e.target)) list.classList.remove('open'); });
+}
+function setupFormEvents() {
+    $('#projectSelect').addEventListener('change', () => {
+        renderPartDropdown($('#partSearchInput').value);
+        const valid = (state.parts||[]).some(p => (p.partNumber||'').toLowerCase() === $('#partSearchInput').value.trim().toLowerCase() && (!$('#projectSelect').value || !p.project || p.project === 'Both' || p.project === $('#projectSelect').value));
+        if (!valid && $('#partSearchInput').value.trim()) { $('#partSearchInput').value = ''; $('#partDescriptionDisplay').value = ''; state.selectedPartId = null; $('#partClearBtn').classList.remove('visible'); }
+    });
+    ['partNumberInput','partDescInput','inspectorNameInput','ncStageNameInput','ncDefectNameInput','reworkPersonInput'].forEach(id => {
+        const el = $('#'+id); if (!el) return;
+        el.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (id === 'partNumberInput') $('#partDescInput').focus();
+                else if (id === 'partDescInput') addPart();
+                else if (id === 'inspectorNameInput') addInspector();
+                else if (id === 'ncStageNameInput') addNcStage();
+                else if (id === 'ncDefectNameInput') addNcDefect();
+                else if (id === 'reworkPersonInput') addReworkPerson();
+            }
+        });
+    });
+}
+function renderParts() {
+    const el = $('#partListContainer');
+    if (!state.parts.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>No parts added yet.</p></div>`; return; }
+    el.innerHTML = state.parts.map(p => { const pr = p.project || 'Both'; const bc = pr === 'FAKRA' ? 'fakra' : ''; const pt = pr === 'Both' ? 'Both Projects' : pr;
+        return `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(p.partNumber)} <span class="project-badge ${bc}">${escapeHtml(pt)}</span></span><span class="secondary">${escapeHtml(p.partDescription)}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(p.id)}"><i class="fas fa-trash-alt"></i></button></div></div>`;
+    }).join('');
+    el.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => deletePart(b.dataset.id)); applyEditLock(b); });
+}
+function renderInspectors() {
+    const el = $('#inspectorListContainer');
+    const active = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
+    if (!active.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div>`; return; }
+    el.innerHTML = active.map(i => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(toTitleCase(i.inspectorName||''))}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(i.id||'')}"><i class="fas fa-user-minus"></i></button></div></div>`).join('');
+    el.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => removeInspector(b.dataset.id)); applyEditLock(b); });
+}
+function renderReworkPersonMaster() {
+    const el = $('#reworkPersonList');
+    if (!state.reworkPersons.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-user-cog"></i><p>No rework persons added yet.</p></div>`; return; }
+    el.innerHTML = state.reworkPersons.map(p => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(p.personName)}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(p.id)}"><i class="fas fa-user-minus"></i></button></div></div>`).join('');
+    el.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => removeReworkPerson(b.dataset.id)); applyEditLock(b); });
+}
+function renderNcMasters() {
+    const stageEl = $('#ncStageListContainer');
+    if (!state.ncStages.length) stageEl.innerHTML = `<div class="empty-state"><i class="fas fa-layer-group"></i><p>No NC stages added yet.</p></div>`;
+    else {
+        stageEl.innerHTML = state.ncStages.map((s,i) => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(s)}</span><span class="secondary">${(state.ncDefects[s]||[]).length} defect(s)</span></div><div class="actions"><button class="btn-del" data-si="${i}"><i class="fas fa-trash-alt"></i></button></div></div>`).join('');
+        stageEl.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => deleteNcStage(+b.dataset.si)); applyEditLock(b); });
+    }
+    const defectEl = $('#ncDefectListContainer');
+    if (!state.ncStages.length) defectEl.innerHTML = `<div class="empty-state"><i class="fas fa-list-ul"></i><p>Add NC stages first.</p></div>`;
+    else {
+        let h = '';
+        state.ncStages.forEach((st,si) => {
+            const list = state.ncDefects[st]||[];
+            h += `<div class="stage-group"><div class="stage-head"><span>${escapeHtml(st)}<span class="stage-count">(${list.length})</span></span></div><div class="stage-body">`;
+            h += list.length ? list.map((d,di) => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(d)}</span></div><div class="actions"><button class="btn-del" data-si="${si}" data-di="${di}"><i class="fas fa-trash-alt"></i></button></div></div>`).join('') : `<div class="list-item"><div class="info"><span class="secondary">No defects.</span></div></div>`;
+            h += `</div></div>`;
+        });
+        defectEl.innerHTML = h;
+        defectEl.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => deleteNcDefect(+b.dataset.si, +b.dataset.di)); applyEditLock(b); });
+    }
+}
+function renderAll() { renderParts(); renderInspectors(); renderReworkPersonMaster(); renderNcStageOptions(); renderNcMasters(); renderDropdowns(); updateEditUI(); }
+function renderDropdowns() { renderInspectorDropdown(); renderPartDropdown(); renderGlobalFilterDropdowns(); renderNcPartFilterOptions(); renderReworkPersonDropdown(); }
+function renderInspectorDropdown(filter='') {
+    const list = $('#inspectorDropdownList');
+    const search = filter.toLowerCase().trim();
+    const insp = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
+    const f = search ? insp.filter(i => (i.inspectorName||'').toLowerCase().includes(search)) : insp;
+    if (!f.length) { list.innerHTML = `<div class="no-results">No inspectors</div>`; return; }
+    list.innerHTML = f.map(i => { const d = toTitleCase(i.inspectorName||''); return `<div class="dropdown-item" data-id="${escapeHtml(i.id||'')}" data-name="${escapeHtml(d)}">${search?highlightText(d,search):escapeHtml(d)}</div>`; }).join('');
+    list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#inspectorSearchInput').value = el.dataset.name; state.selectedInspectorId = el.dataset.id; list.classList.remove('open'); $('#inspectorClearBtn').classList.add('visible'); }));
+}
+function renderPartDropdown(filter='') {
+    const list = $('#partDropdownList');
+    const pr = $('#projectSelect').value;
+    let parts = state.parts||[];
+    if (pr) parts = parts.filter(p => !p.project || p.project === 'Both' || p.project === pr);
+    const search = filter.toLowerCase().trim();
+    const f = search ? parts.filter(p => (p.partNumber||'').toLowerCase().includes(search) || (p.partDescription||'').toLowerCase().includes(search)) : parts;
+    if (!f.length) { list.innerHTML = `<div class="no-results">No parts</div>`; return; }
+    list.innerHTML = f.map(p => { const d = `${p.partNumber} — ${p.partDescription}`; return `<div class="dropdown-item" data-id="${escapeHtml(p.id)}" data-number="${escapeHtml(p.partNumber)}" data-description="${escapeHtml(p.partDescription)}">${search?highlightText(d,search):escapeHtml(d)}<span class="sub-text">${escapeHtml(p.partNumber)}</span></div>`; }).join('');
+    list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#partSearchInput').value = el.dataset.number; $('#partDescriptionDisplay').value = el.dataset.description; state.selectedPartId = el.dataset.id; list.classList.remove('open'); $('#partClearBtn').classList.add('visible'); }));
+}
+function renderGlobalFilterDropdowns() {
+    const opSet = new Map();
+    (state.records||[]).forEach(r => { const o = r.operatorName; if (!o) return; const k = normalizeKey(o); if (!opSet.has(k)) opSet.set(k, toTitleCase(o)); });
+    const ops = Array.from(opSet.values()).sort();
+    const lo = $('#gFilterOperatorList'); const so = $('#gFilterOperator').value.trim().toLowerCase();
+    const fo = so ? ops.filter(o => o.toLowerCase().includes(so)) : ops;
+    lo.innerHTML = fo.length ? fo.map(o => `<div class="dropdown-item" data-value="${escapeHtml(o)}">${so?highlightText(o,so):escapeHtml(o)}</div>`).join('') : `<div class="no-results">No operators</div>`;
+    lo.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#gFilterOperator').value = el.dataset.value; lo.classList.remove('open'); $('#gFilterOperatorClear').classList.add('visible'); }));
+    const lp = $('#gFilterPartList'); const sp = $('#gFilterPart').value.trim().toLowerCase();
+    const fp = sp ? (state.parts||[]).filter(p => (p.partNumber||'').toLowerCase().includes(sp) || (p.partDescription||'').toLowerCase().includes(sp)) : (state.parts||[]);
+    lp.innerHTML = fp.length ? fp.map(p => { const d = `${p.partNumber} — ${p.partDescription}`; return `<div class="dropdown-item" data-value="${escapeHtml(p.partNumber)}">${sp?highlightText(d,sp):escapeHtml(d)}<span class="sub-text">${escapeHtml(p.partNumber)}</span></div>`; }).join('') : `<div class="no-results">No parts</div>`;
+    lp.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#gFilterPart').value = el.dataset.value; lp.classList.remove('open'); $('#gFilterPartClear').classList.add('visible'); }));
+}
+function renderNcPartFilterOptions() { const sel = $('#gFilterNcPart'); const cur = sel.value; const parts = getUniqueNcParts(); sel.innerHTML = '<option value="">All</option>' + parts.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join(''); if (parts.some(p => eqIgnoreCase(p, cur))) sel.value = cur; }
+function renderReworkPersonDropdown(filter='') {
+    const list = $('#reworkPersonDropdown');
+    const search = filter.toLowerCase().trim();
+    const f = (state.reworkPersons||[]).filter(p => !search || p.personName.toLowerCase().includes(search));
+    list.innerHTML = f.length ? f.map(p => `<div class="dropdown-item" data-name="${escapeHtml(p.personName)}">${escapeHtml(p.personName)}</div>`).join('') : `<div class="no-results">No persons</div>`;
+    list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { state.selectedReworkPerson = el.dataset.name; $('#reworkPersonSearch').value = el.dataset.name; list.classList.remove('open'); showReworkContent(); }));
+}
+let syncPromise = null;
+async function syncMasters(silent) {
+    if (syncPromise) return syncPromise;
+    syncPromise = (async () => {
+        if (!silent) setSyncStatus('syncing', 'Syncing...');
+        try {
+            const r = await apiFetch('getMasters');
+            const sr = r && r.data; const md = sr && sr.data;
+            if (r.success && sr && sr.success !== false && md && !md.error) {
+                const parts = Array.isArray(md.parts) ? md.parts : [];
+                const inspectors = Array.isArray(md.inspectors) ? md.inspectors : [];
+                const localParts = loadFromStorage(CONFIG.STORAGE_KEYS.parts) || [];
+                const pm = {}; localParts.forEach(p => { if (p && p.partNumber) pm[String(p.partNumber).toLowerCase()] = p.project || p.plant; });
+                state.parts = parts.map(p => { const k = String(p.partNumber||'').toLowerCase(); return { ...p, project: p.project || p.plant || pm[k] || 'Both' }; });
+                const seen = new Set();
+                state.inspectors = inspectors.filter(i => String(i.inspectorName||'').trim().toLowerCase() !== 'admin').map(i => ({ ...i, id: (i.id && String(i.id).trim()) || generateId(), inspectorName: toTitleCase(i.inspectorName||'') })).filter(i => { const k = normalizeKey(i.inspectorName); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+                saveToStorage(CONFIG.STORAGE_KEYS.parts, state.parts);
+                saveToStorage(CONFIG.STORAGE_KEYS.inspectors, state.inspectors);
+                setSyncStatus('synced', 'Synced');
+                renderAll();
+            } else setSyncStatus('offline', 'Offline');
+        } catch (e) { console.warn(e); setSyncStatus('offline', 'Offline'); }
+        finally { syncPromise = null; }
+    })();
+    return syncPromise;
+}
+let recordsPromise = null;
+async function loadRecords(silent) {
+    if (recordsPromise) return recordsPromise;
+    recordsPromise = (async () => {
+        try {
+            const r = await apiFetch('getRecords');
+            const sr = r && r.data;
+            let arr = null;
+            if (Array.isArray(sr)) arr = sr;
+            else if (sr && Array.isArray(sr.data)) arr = sr.data;
+            else if (sr && Array.isArray(sr.records)) arr = sr.records;
+            if (arr) {
+                state.records = arr.map(x => ({ ...x, project: readProject(x), date: toDateString(x.date), inspectorName: toTitleCase(x.inspectorName||''), operatorName: toTitleCase(x.operatorName||''), shift: (x.shift||'').trim(), ncStage: (x.ncStage||'').trim(), ncPart: (x.ncPart||'').trim(), ncPartDetail: (x.ncPartDetail||'').trim(), requiredDisposition: (x.requiredDisposition||'').trim(), status: (x.status||'').trim(), reworkBy: (x.reworkBy||'').trim(), reworkDate: (x.reworkDate||'').trim(), reworkRemark: (x.reworkRemark||'').trim(), finalDisposition: (x.finalDisposition||'').trim(), scrapReason: (x.scrapReason||'').trim() }));
+                saveToStorage(CONFIG.STORAGE_KEYS.records, state.records);
+                setSyncStatus('synced', 'Synced');
+            } else setSyncStatus('offline', 'Offline');
+        } catch (e) { console.warn(e); setSyncStatus('offline', 'Offline'); }
+        finally { recordsPromise = null; }
+        applyGlobalFilters(); updateReworkBadge(); renderWeeklyDashboard();
+    })();
+    return recordsPromise;
+}
+async function loadReworkPersons() {
+    try {
+        const r = await apiFetch('getReworkPersons');
+        const arr = Array.isArray(r.data) ? r.data : (r.data && r.data.data) || [];
+        state.reworkPersons = (arr||[]).map(p => ({ ...p, personName: toTitleCase(p.personName||'') }));
+        saveToStorage(CONFIG.STORAGE_KEYS.reworkPersons, state.reworkPersons);
+        renderReworkPersonMaster(); renderReworkPersonDropdown();
+    } catch (e) { console.warn(e); }
+}
+function requireEdit() { if (!state.editMode) { showToast('Editing locked.', 'warning'); return false; } return true; }
+function applyEditLock(btn) { if (!btn) return; btn.disabled = !state.editMode; btn.style.opacity = state.editMode ? '1' : '0.5'; btn.style.pointerEvents = state.editMode ? 'auto' : 'none'; }
+async function addPart() { if (!requireEdit()) return;
+    const num = $('#partNumberInput').value.trim(), desc = $('#partDescInput').value.trim(), pr = $('#partProjectInput').value || 'Both';
+    if (!num || !desc) { showToast('Fill both fields.', 'error'); return; }
+    if (state.parts.some(p => (p.partNumber||'').toLowerCase() === num.toLowerCase())) { showToast('Part exists.', 'error'); return; }
+    const newP = { id: generateId(), partNumber: num, partDescription: desc, project: pr };
+    const r = await apiCall('addPart', { part: newP }); if (!r || r.success === false) { showToast('Failed: ' + (r?.error||'unknown'), 'error'); return; }
+    $('#partNumberInput').value = ''; $('#partDescInput').value = ''; $('#partProjectInput').value = 'Both';
+    await syncMasters(true); showToast('Part added!', 'success');
+}
+async function deletePart(id) { if (!requireEdit()) return; if (!confirm('Delete this part?')) return; const r = await apiCall('deletePart', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Part deleted.', 'success'); }
+async function addInspector() { if (!requireEdit()) return;
+    const name = toTitleCase($('#inspectorNameInput').value);
+    if (!name) { showToast('Enter name.', 'error'); return; }
+    if (name.toLowerCase() === 'admin') { showToast('Admin is not inspector.', 'error'); return; }
+    if (state.inspectors.some(i => eqIgnoreCase(i.inspectorName, name))) { showToast('Exists.', 'error'); return; }
+    const ni = { id: generateId(), inspectorName: name, active: true };
+    const r = await apiCall('addInspector', { inspector: ni }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; }
+    $('#inspectorNameInput').value = ''; await syncMasters(true); showToast('Inspector added.', 'success');
+}
+async function removeInspector(id) { if (!requireEdit()) return; if (!confirm('Delete inspector?')) return; const r = await apiCall('removeInspector', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Deleted.', 'success'); }
+async function addReworkPerson() { if (!requireEdit()) return;
+    const name = toTitleCase($('#reworkPersonInput').value);
+    if (!name) { showToast('Enter name.', 'error'); return; }
+    if (state.reworkPersons.some(p => eqIgnoreCase(p.personName, name))) { showToast('Exists.', 'error'); return; }
+    const r = await apiCall('addReworkPerson', { person: { personName: name, active: true } }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; }
+    $('#reworkPersonInput').value = ''; await loadReworkPersons(); showToast('Rework person added.', 'success');
+}
+async function removeReworkPerson(id) { if (!requireEdit()) return; if (!confirm('Delete person?')) return; const r = await apiCall('removeReworkPerson', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await loadReworkPersons(); showToast('Deleted.', 'success'); }
+async function addNcStage() { if (!requireEdit()) return;
+    const name = $('#ncStageNameInput').value.trim().toUpperCase();
+    if (!name) { showToast('Enter stage name.', 'error'); return; }
+    if (state.ncStages.some(s => eqIgnoreCase(s, name))) { showToast('Stage exists.', 'error'); return; }
+    state.ncStages.push(name); if (!Array.isArray(state.ncDefects[name])) state.ncDefects[name] = [];
+    persistNcMasters(); $('#ncStageNameInput').value = '';
+    renderNcStageOptions(); renderNcMasters(); showToast('Stage added.', 'success');
+}
+async function deleteNcStage(i) { if (!requireEdit()) return;
+    const name = state.ncStages[i]; if (!name) return; if (!confirm(`Delete "${name}"?`)) return;
+    state.ncStages.splice(i, 1); delete state.ncDefects[name]; persistNcMasters(); renderNcStageOptions(); renderNcMasters(); showToast('Deleted.', 'success');
+}
+async function addNcDefect() { if (!requireEdit()) return;
+    const st = $('#ncDefectStageSelect').value, name = $('#ncDefectNameInput').value.trim();
+    if (!st) { showToast('Select stage.', 'error'); return; } if (!name) { showToast('Enter defect.', 'error'); return; }
+    if (!Array.isArray(state.ncDefects[st])) state.ncDefects[st] = [];
+    if (state.ncDefects[st].some(d => eqIgnoreCase(d, name))) { showToast('Exists.', 'error'); return; }
+    state.ncDefects[st].push(name); persistNcMasters(); $('#ncDefectNameInput').value = '';
+    renderNcMasters(); showToast('Defect added.', 'success');
+}
+async function deleteNcDefect(si, di) { if (!requireEdit()) return;
+    const st = state.ncStages[si]; if (!st) return; const list = state.ncDefects[st] || []; const n = list[di]; if (!n) return;
+    if (!confirm(`Delete "${n}"?`)) return; list.splice(di, 1); persistNcMasters(); renderNcMasters(); showToast('Deleted.', 'success');
+}
+function updateEditUI() {
+    const locked = !state.editMode;
+    $('#editLockStatus').textContent = locked ? '🔒 Editing is locked' : '🔓 Editing is unlocked';
+    $('#editLockStatus').style.color = locked ? 'var(--danger)' : 'var(--success)';
+    $('#toggleEditBtn').innerHTML = locked ? '<i class="fas fa-unlock"></i> Unlock Edit' : '<i class="fas fa-lock"></i> Lock';
+    ['addPartBtn','addInspectorBtn','addNcStageBtn','addNcDefectBtn','addReworkPersonBtn'].forEach(id => { const el = $('#'+id); if (el) el.disabled = locked; });
+    renderParts(); renderInspectors(); renderNcMasters(); renderReworkPersonMaster();
+}
+function toggleEdit() {
+    if (state.editMode) { state.editMode = false; updateEditUI(); showToast('Editing locked.', 'info'); }
+    else { const pwd = prompt('Enter password:'); if (pwd === CONFIG.EDIT_PASSWORD) { state.editMode = true; updateEditUI(); showToast('Editing unlocked.', 'success'); } else if (pwd !== null) showToast('Wrong password.', 'error'); }
+}
+async function submitEntry() {
+    if (state.isSubmitting) return;
+    abortPending();
+    const safety = setTimeout(() => { if (state.isSubmitting) { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); showToast('Took too long.', 'warning'); } }, 60000);
+
+    const c = { date: $('#inspectionDate').value, project: $('#projectSelect').value, shift: $('#inspectionShift').value, inspectorName: $('#inspectorSearchInput').value.trim(), partNumber: $('#partSearchInput').value.trim(), partDescription: $('#partDescriptionDisplay').value.trim(), jobNo: $('#jobNoInput').value.trim(), operatorName: $('#operatorNameInput').value.trim(), okQty: parseInt($('#okQtyInput').value) || 0 };
+    if (!c.date) { showToast('Select date.', 'error'); clearTimeout(safety); return; }
+    if (!c.project) { showToast('Select project.', 'error'); clearTimeout(safety); return; }
+    if (!c.shift) { showToast('Select shift.', 'error'); clearTimeout(safety); return; }
+    if (!c.inspectorName) { showToast('Select inspector.', 'error'); clearTimeout(safety); return; }
+    if (!c.partNumber) { showToast('Select part.', 'error'); clearTimeout(safety); return; }
+    if (!c.jobNo) { showToast('Enter Job No.', 'error'); clearTimeout(safety); return; }
+    if (!c.operatorName) { showToast('Enter operator.', 'error'); clearTimeout(safety); return; }
+    if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false)) { showToast('Inspector not found.', 'error'); clearTimeout(safety); return; }
+    if (!state.parts.some(p => eqIgnoreCase(p.partNumber, c.partNumber))) { showToast('Part not found.', 'error'); clearTimeout(safety); return; }
+
+    const ncs = collectNcEntries();
+    if (!ncs.length) { showToast('Add at least one rejection.', 'error'); clearTimeout(safety); return; }
+    for (let i = 0; i < ncs.length; i++) {
+        const n = ncs[i], tag = `Rejection #${i+1}: `;
+        if (!n.qty || n.qty < 1) { showToast(tag + 'Enter NC Qty.', 'error'); clearTimeout(safety); return; }
+        if (!n.stage) { showToast(tag + 'Select NC Stage.', 'error'); clearTimeout(safety); return; }
+        if (!n.part) { showToast(tag + 'Select NC Part.', 'error'); clearTimeout(safety); return; }
+        if (!n.partDetail) { showToast(tag + 'Enter part detail.', 'error'); clearTimeout(safety); return; }
+        if (!n.description) { showToast(tag + 'Select NC Description.', 'error'); clearTimeout(safety); return; }
+        if (n.description === '__custom__' && !n.custom) { showToast(tag + 'Enter custom description.', 'error'); clearTimeout(safety); return; }
+        if (!n.disposition) { showToast(tag + 'Select Disposition.', 'error'); clearTimeout(safety); return; }
+        if (n.description !== '__custom__' && Array.isArray(state.ncDefects[n.stage]) && !state.ncDefects[n.stage].some(d => eqIgnoreCase(d, n.description))) { showToast(tag + `"${n.description}" not valid for "${n.stage}".`, 'error'); clearTimeout(safety); return; }
+    }
+
+    state.isSubmitting = true;
+    $('#submitEntryBtn').disabled = true;
+    $('#submitEntryBtn').innerHTML = '<span class="spinner"></span> Submitting...';
+    showLoading(`Submitting ${ncs.length} rejection${ncs.length>1?'s':''}...`);
+
+    try {
+        const batchTs = new Date().toISOString();
+        const allRecords = ncs.map((n, i) => {
+            const description = n.description === '__custom__' ? n.custom : n.description;
+            return {
+                id: generateId(),
+                project: c.project, date: c.date, shift: c.shift.trim(),
+                inspectorName: toTitleCase(c.inspectorName),
+                partNumber: c.partNumber, partDescription: c.partDescription,
+                jobNo: c.jobNo, operatorName: toTitleCase(c.operatorName),
+                okQty: i === 0 ? c.okQty : 0,
+                ncQty: n.qty, ncStage: n.stage, ncPart: n.part, ncPartDetail: n.partDetail,
+                ncDescription: description, requiredDisposition: n.disposition,
+                remarks: n.remarks, actionTaken: n.action,
+                status: eqIgnoreCase(n.disposition,'Rework') ? REWORK_PENDING : (eqIgnoreCase(n.disposition,'Reject') ? REWORK_SCRAPPED : 'OK'),
+                reworkBy: '', reworkDate: '', reworkRemark: '', finalDisposition: '', scrapReason: '',
+                timestamp: batchTs
+            };
+        });
+
+        const r = await apiCall('addRecordsBatch', { records: allRecords });
+
+        const recs = loadFromStorage(CONFIG.STORAGE_KEYS.records) || [];
+        allRecords.forEach(x => recs.push(x));
+        saveToStorage(CONFIG.STORAGE_KEYS.records, recs);
+        state.records = recs;
+
+        if (r && r.success) {
+            showToast(`✅ ${allRecords.length} rejection${allRecords.length>1?'s':''} submitted!`, 'success');
+        } else {
+            showToast('Saved locally, sync pending. ' + (r?.error||''), 'warning');
+        }
+        $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
+        $('#okQtyInput').value = '';
+        loadRecords().catch(()=>{});
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); clearTimeout(safety); }
+}
+
+function showReworkContent() {
+    if (!state.selectedReworkPerson) return;
+    $('#reworkStatsCard').style.display = 'block';
+    $('#reworkFilterCard').style.display = 'block';
+    $('#reworkListCard').style.display = 'block';
+    renderReworkPage();
+}
+function renderReworkPage() {
+    const today = new Date().toISOString().slice(0,10);
+    const all = state.records || [];
+    const pending = all.filter(r => getRecordStatus(r) === REWORK_PENDING);
+    const doneToday = all.filter(r => getRecordStatus(r) === REWORK_DONE && r.reworkDate === today);
+    const scrapped = all.filter(r => getRecordStatus(r) === REWORK_SCRAPPED);
+    const totalReworked = all.filter(r => getRecordStatus(r) === REWORK_DONE).length;
+    const ratio = (totalReworked + scrapped.length) > 0 ? Math.round(totalReworked / (totalReworked + scrapped.length) * 100) : 0;
+    $('#rwPending').textContent = pending.length;
+    $('#rwDoneToday').textContent = doneToday.length;
+    $('#rwScrapped').textContent = scrapped.length;
+    $('#rwRatio').textContent = ratio + '%';
+    const fp = $('#rwFilterProject').value, fa = $('#rwFilterAge').value;
+    let f = pending;
+    if (fp) f = f.filter(r => eqIgnoreCase(r.project, fp));
+    if (fa) f = f.filter(r => { const a = getRecordAge(r); if (fa === 'today') return a === 0; if (fa === '1-2') return a >= 1 && a <= 2; if (fa === '3-7') return a >= 3 && a <= 7; if (fa === '7+') return a > 7; return true; });
+    $('#rwPendingCount').textContent = `(${f.length})`;
+    const lc = $('#reworkListContainer');
+    if (!f.length) lc.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle"></i><p>No pending rework</p></div>`;
+    else {
+        lc.innerHTML = f.map(r => `
+            <div class="record-item pending-item">
+                <div class="row"><span class="project-badge ${readProject(r) === 'FAKRA' ? 'fakra' : ''}">${escapeHtml(readProject(r))}</span><span class="value">${escapeHtml(r.partNumber||'')}</span>${ageBadge(r)}</div>
+                <div class="row" style="margin-top:4px"><span class="label">Qty:</span><span class="value">${escapeHtml(r.ncQty||0)}</span><span class="label">Stage:</span><span class="value">${escapeHtml(r.ncStage||'')}</span><span class="label">Part:</span><span class="value">${escapeHtml(getEffectiveNcPart(r))}${r.ncPartDetail?' - '+escapeHtml(r.ncPartDetail):''}</span></div>
+                <div class="row" style="margin-top:4px;font-size:.8rem;color:var(--text-light)"><span>${escapeHtml(r.ncDescription||'')}</span></div>
+                <div class="record-actions"><button class="btn-edit-sm" data-id="${escapeHtml(r.id)}"><i class="fas fa-tools"></i> Do Rework</button></div>
+            </div>`).join('');
+        lc.querySelectorAll('.btn-edit-sm').forEach(b => b.addEventListener('click', () => openReworkPopup(b.dataset.id)));
+    }
+    renderScrapDashboard(scrapped);
+}
+function renderScrapDashboard(scrapped) {
+    const totalQty = scrapped.reduce((s,r) => s + (parseInt(r.ncQty)||0), 0);
+    const now = new Date();
+    const thisMonth = scrapped.filter(r => { const d = new Date(r.reworkDate || r.timestamp); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s,r) => s + (parseInt(r.ncQty)||0), 0);
+    const rm = {}; scrapped.forEach(r => { const k = r.scrapReason || 'Unspecified'; rm[k] = (rm[k]||0) + (parseInt(r.ncQty)||0); });
+    const top = Object.entries(rm).sort((a,b)=>b[1]-a[1])[0];
+    $('#scrapTotal').textContent = totalQty;
+    $('#scrapMonth').textContent = thisMonth;
+    $('#scrapTopReason').textContent = top ? top[0] : '-';
+    const recent = scrapped.slice(-5).reverse();
+    $('#scrapListContainer').innerHTML = recent.length ? recent.map(r => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(r.partNumber)} — ${escapeHtml(r.scrapReason||'')}</span><span class="secondary">${escapeHtml(r.ncStage||'')} • Qty ${r.ncQty} • ${escapeHtml(r.reworkDate||'')}</span></div></div>`).join('') : `<div class="text-muted text-center">No scrap yet</div>`;
+}
+function openReworkPopup(id) {
+    const r = state.records.find(x => x.id === id); if (!r) return;
+    const p = state.selectedReworkPerson;
+    if (!p) { showToast('Select person first.', 'warning'); return; }
+    $('#reworkPopupBody').innerHTML = `
+        <div style="font-size:.85rem;margin-bottom:12px;color:var(--text-light)">
+            <div><strong>Part:</strong> ${escapeHtml(r.partNumber||'')}</div>
+            <div><strong>NC Qty:</strong> ${escapeHtml(r.ncQty||0)} • <strong>Stage:</strong> ${escapeHtml(r.ncStage||'')}</div>
+            <div><strong>Defect:</strong> ${escapeHtml(r.ncDescription||'')}</div>
+        </div>
+        <div class="form-group"><label>Rework By</label><input type="text" class="form-control" value="${escapeHtml(p)}" readonly /></div>
+        <div class="form-group"><label>Action</label><select class="form-control" id="rwAction"><option value="done">✅ Rework Done</option><option value="scrap">❌ Cannot Rework (Scrap)</option></select></div>
+        <div class="form-group" id="rwResultGroup"><label>Final Result</label><select class="form-control" id="rwResult"><option value="Accept">Accept (OK)</option><option value="Accept under Deviation">Accept under Deviation</option><option value="Scrap">Scrap (rework failed)</option></select></div>
+        <div class="form-group"><label>Remark <span class="required">*</span></label><textarea class="form-control" id="rwRemark" rows="2" placeholder="Enter details..."></textarea></div>
+        <button class="btn btn-success btn-block" id="rwSubmitBtn"><i class="fas fa-save"></i> Submit</button>`;
+    $('#rwAction').addEventListener('change', () => { $('#rwResultGroup').style.display = $('#rwAction').value === 'done' ? 'block' : 'none'; });
+    $('#rwSubmitBtn').addEventListener('click', async () => {
+        const rem = $('#rwRemark').value.trim();
+        if (!rem) { showToast('Remark is required.', 'error'); return; }
+        const isScrap = $('#rwAction').value === 'scrap';
+        const fd = isScrap ? 'Scrap' : $('#rwResult').value;
+        const upd = { ...r, status: (isScrap || fd === 'Scrap') ? REWORK_SCRAPPED : REWORK_DONE, reworkBy: p, reworkDate: new Date().toISOString().slice(0,10), reworkRemark: rem, finalDisposition: fd, scrapReason: (isScrap || fd === 'Scrap') ? rem : '' };
+        await submitReworkAction(upd);
+    });
+    $('#reworkPopupOverlay').classList.add('active');
+}
+async function submitReworkAction(upd) {
+    showLoading('Saving...');
+    try {
+        const r = await apiCall('updateRecord', { record: upd });
+        if (r && r.success) {
+            const i = state.records.findIndex(x => x.id === upd.id);
+            if (i > -1) state.records[i] = upd;
+            saveToStorage(CONFIG.STORAGE_KEYS.records, state.records);
+            $('#reworkPopupOverlay').classList.remove('active');
+            showToast('Rework saved.', 'success');
+            renderReworkPage(); updateReworkBadge(); applyGlobalFilters();
+        } else showToast('Failed: ' + (r?.error||'unknown'), 'error');
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { hideLoading(); }
+}
+
+// ⚡ WEEKLY DASHBOARD — 5-week support
+function matchesWeeklyArea(r, area) {
+    if (!area) return true;
+    const pr = readProject(r);
+    const st = normalizeKey(r.ncStage);
+    if (area === 'FAKRA_All') return pr === 'FAKRA';
+    if (area === 'Regular_CrimpArea') return pr === 'Regular' && ['wire cutting','crimping','hst sleeve insertion','shrinking'].includes(st);
+    if (area === 'Regular_Insert&TapeArea') return pr === 'Regular' && ['grommate insertion','navigation & insertion','taping'].includes(st);
+    if (area === 'Regular_Test&FinalArea') return pr === 'Regular' && ['testing','final inspection'].includes(st);
+    return true;
+}
+function renderWeeklyDashboard() {
+    const monthEl = $('#weeklyMonth'); if (!monthEl) return;
+    if (!monthEl.value) monthEl.value = new Date().toISOString().slice(0,7);
+    const month = monthEl.value;
+    const area = $('#weeklyArea').value;
+    const all = state.records || [];
+    const filtered = all.filter(r => (r.date||'').slice(0,7) === month && matchesWeeklyArea(r, area));
+
+    const lastDay = new Date(parseInt(month.slice(0,4),10), parseInt(month.slice(5,7),10), 0).getDate();
+    const weeks = [
+        { n:1, from:1,  to:7,  label:'W1 (1-7)' },
+        { n:2, from:8,  to:14, label:'W2 (8-14)' },
+        { n:3, from:15, to:21, label:'W3 (15-21)' },
+        { n:4, from:22, to:28, label:'W4 (22-28)' }
+    ];
+    if (lastDay >= 29) weeks.push({ n:5, from:29, to:lastDay, label:`W5 (29-${lastDay})` });
+
+    const weekly = weeks.map(w => {
+        const recs = filtered.filter(r => { const d = parseInt((r.date||'').slice(8,10), 10); return d >= w.from && d <= w.to; });
+        const nc = recs.reduce((s,r) => s + (parseInt(r.ncQty)||0), 0);
+        const ok = recs.reduce((s,r) => s + (parseInt(r.okQty)||0), 0);
+        const pct = (ok+nc) > 0 ? (nc/(ok+nc)*100) : 0;
+        return { ...w, nc, ok, pct, count: recs.length };
+    });
+
+    const wsEl = $('#weeklyStats');
+    wsEl.style.gridTemplateColumns = `repeat(${weekly.length}, 1fr)`;
+    wsEl.innerHTML = weekly.map((w, i) => `
+        <div class="summary-card week-card${i === _selectedWeek ? ' sel' : ''}" data-week="${i}">
+            <span class="num red">${w.nc}</span>
+            <span class="lbl">${w.label}</span>
+            <span style="display:block;margin-top:2px;font-size:0.65rem;color:var(--text-light)">${w.pct.toFixed(1)}% NC • ${w.count} ent</span>
+        </div>`).join('');
+    wsEl.querySelectorAll('.week-card').forEach(c => c.addEventListener('click', () => {
+        _selectedWeek = parseInt(c.dataset.week);
+        renderWeeklyDashboard();
+    }));
+
+    const dEl = $('#dayBreakdown');
+    if (_selectedWeek === null || !weekly[_selectedWeek]) { dEl.innerHTML = ''; return; }
+    const w = weekly[_selectedWeek];
+    const days = [];
+    for (let d = w.from; d <= w.to; d++) {
+        const dateStr = `${month}-${String(d).padStart(2,'0')}`;
+        const recs = filtered.filter(r => r.date === dateStr);
+        const nc = recs.reduce((s,r) => s + (parseInt(r.ncQty)||0), 0);
+        days.push({ day: d, nc, count: recs.length });
+    }
+    dEl.innerHTML = `
+        <div style="margin-top:12px;font-size:.8rem;color:var(--text-light);font-weight:600;margin-bottom:6px">
+            <i class="fas fa-calendar-day"></i> ${w.label} — Daily breakdown
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+            ${days.map(d => `
+                <div class="day-cell${d.nc > 0 ? ' has-nc' : ''}">
+                    <span class="num">${d.nc}</span>
+                    <span class="lbl">Day ${d.day}</span>
+                </div>`).join('')}
+        </div>`;
+}
+
+function getFilteredRecords() {
+    let recs = state.records || [];
+    const pr = $('#gFilterProject').value, from = $('#gFilterFrom').value, to = $('#gFilterTo').value;
+    const sh = $('#gFilterShift').value.trim(), op = $('#gFilterOperator').value.trim().toLowerCase();
+    const pt = $('#gFilterPart').value.trim().toLowerCase(), st = $('#gFilterNcStage').value.trim();
+    const np = $('#gFilterNcPart').value.trim(), pd = $('#gFilterNcPartDetail').value.trim().toLowerCase();
+    const dp = $('#gFilterDisposition').value.trim(), stat = $('#gFilterStatus').value.trim(), jb = $('#gFilterJob').value.trim().toLowerCase();
+    if (pr) recs = recs.filter(r => eqIgnoreCase(r.project, pr));
+    if (sh) recs = recs.filter(r => eqIgnoreCase(r.shift, sh));
+    if (st) recs = recs.filter(r => eqIgnoreCase(r.ncStage, st));
+    if (dp) recs = recs.filter(r => eqIgnoreCase(r.requiredDisposition, dp));
+    if (stat) recs = recs.filter(r => eqIgnoreCase(getRecordStatus(r), stat));
+    if (from) recs = recs.filter(r => r.date && r.date >= from);
+    if (to) recs = recs.filter(r => r.date && r.date <= to);
+    if (op) recs = recs.filter(r => (r.operatorName||'').toLowerCase().includes(op));
+    if (pt) recs = recs.filter(r => (r.partNumber||'').toLowerCase().includes(pt));
+    if (pd) recs = recs.filter(r => (r.ncPartDetail||'').toLowerCase().includes(pd));
+    if (jb) recs = recs.filter(r => (r.jobNo||'').toLowerCase().includes(jb));
+    if (np) recs = recs.filter(r => eqIgnoreCase(getEffectiveNcPart(r), np));
+    return recs;
+}
+function applyGlobalFilters() {
+    renderNcPartFilterOptions();
+    const f = getFilteredRecords();
+    state.filteredRecords = f;
+    renderSummary(f); renderTrendChart(f); renderParetoAnalysis(f); renderMonthlySummary(f); renderRecordsList(f);
+}
+function resetGlobalFilters() {
+    ['gFilterProject','gFilterFrom','gFilterTo','gFilterShift','gFilterNcStage','gFilterNcPart','gFilterNcPartDetail','gFilterDisposition','gFilterStatus','gFilterJob'].forEach(id => { const el = $('#'+id); if (el) el.value = ''; });
+    $('#gFilterOperator').value = ''; $('#gFilterOperatorClear').classList.remove('visible');
+    $('#gFilterPart').value = ''; $('#gFilterPartClear').classList.remove('visible');
+    applyGlobalFilters();
+}
+function renderSummary(recs) {
+    const total = recs.length; let ok = 0, nc = 0; const dm = {}, pm = {};
+    recs.forEach(r => { ok += parseInt(r.okQty)||0; nc += parseInt(r.ncQty)||0; const d = r.ncDescription||'Unspecified'; dm[d] = (dm[d]||0)+(parseInt(r.ncQty)||0); const p = r.partNumber||'Unspecified'; pm[p] = (pm[p]||0)+(parseInt(r.ncQty)||0); });
+    const pct = (ok + nc) > 0 ? (nc / (ok + nc) * 100) : 0;
+    const td = Object.entries(dm).sort((a,b)=>b[1]-a[1])[0];
+    const tp = Object.entries(pm).sort((a,b)=>b[1]-a[1])[0];
+    $('#sumEntries').textContent = total; $('#sumOk').textContent = ok; $('#sumNc').textContent = nc;
+    $('#sumRejPct').textContent = pct.toFixed(1) + '%';
+    $('#sumTopDefect').textContent = td ? td[0] : '-';
+    $('#sumTopPart').textContent = tp ? tp[0] : '-';
+}
+function renderTrendChart(recs) {
+    const gb = $('#trendGroupBy').value || 'month', met = $('#trendMetric').value || 'nc';
+    const map = {};
+    recs.forEach(r => { const d = new Date(r.date + 'T00:00:00'); if (isNaN(d)) return;
+        let k;
+        if (gb === 'month') k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        else { const s = new Date(d.getFullYear(),0,1); const w = Math.ceil((((d-s)/86400000)+s.getDay()+1)/7); k = d.getFullYear() + '-W' + String(w).padStart(2,'0'); }
+        if (!map[k]) map[k] = { ok:0, nc:0 };
+        map[k].ok += parseInt(r.okQty)||0; map[k].nc += parseInt(r.ncQty)||0;
+    });
+    const keys = Object.keys(map).sort();
+    const data = keys.map(k => { const t = map[k].ok + map[k].nc; return { label: k, value: met === 'nc' ? map[k].nc : (t > 0 ? (map[k].nc/t)*100 : 0) }; });
+    const c = $('#trendCanvas'); if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.parentElement.clientWidth || 600, h = 260;
+    c.style.width = w+'px'; c.style.height = h+'px'; c.width = Math.round(w*dpr); c.height = Math.round(h*dpr);
+    const ctx = c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    if (!data.length) { ctx.fillStyle='#7f8c8d'; ctx.textAlign='center'; ctx.font='14px Segoe UI'; ctx.fillText('No data', w/2, h/2); return; }
+    const L=48,R=20,T=20,B=40, pw = w-L-R, ph = h-T-B, maxV = Math.max(1, ...data.map(x=>x.value)), stp = pw / Math.max(1, data.length-1);
+    ctx.strokeStyle='#e3e8ed'; ctx.lineWidth=1;
+    for (let i=0;i<=4;i++){ const y = T + ph - (ph*i/4); ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(w-R,y); ctx.stroke(); ctx.fillStyle='#7f8c8d'; ctx.font='10px Segoe UI'; ctx.textAlign='right'; ctx.fillText(Math.round(maxV*i/4), L-6, y+4); }
+    ctx.beginPath();
+    data.forEach((d,i)=>{ const x=L+i*stp, y=T+ph-(d.value/maxV)*ph; if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y); });
+    ctx.strokeStyle='#e67e22'; ctx.lineWidth=2.5; ctx.stroke();
+    data.forEach((d,i)=>{ const x=L+i*stp, y=T+ph-(d.value/maxV)*ph; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fillStyle='#0f3b5e'; ctx.fill(); });
+    ctx.fillStyle='#7f8c8d'; ctx.font='9px Segoe UI'; ctx.textAlign='center';
+    const ls = Math.max(1, Math.floor(data.length/10));
+    data.forEach((d,i)=>{ if(i%ls===0||i===data.length-1){ ctx.fillText(d.label, L+i*stp, h-6); } });
+    ctx.fillStyle='#0f3b5e'; ctx.font='bold 10px Segoe UI'; ctx.textAlign='left'; ctx.fillText(met==='nc'?'NC Qty':'Rejection %', L, 16);
+}
+function getParetoData(recs, dim, lim) {
+    const map = {};
+    recs.forEach(r => { let l; if (dim === 'ncPart') l = getEffectiveNcPart(r); else l = r[dim];
+        if (!l) l = 'Unspecified';
+        if (dim === 'month') { const d = new Date(r.date + 'T00:00:00'); l = !isNaN(d) ? d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') : 'Unspecified'; }
+        if (typeof l === 'string') l = l.trim() || 'Unspecified';
+        map[l] = (map[l]||0) + (parseInt(r.ncQty)||0);
+    });
+    const s = Object.entries(map).map(([label,qty])=>({label,qty})).sort((a,b)=>b.qty-a.qty);
+    const total = s.reduce((x,y)=>x+y.qty,0);
+    const lim2 = lim === 'all' ? s.length : (parseInt(lim,10)||10);
+    const vis = s.slice(0, lim2);
+    let run = 0;
+    return { rows: vis.map(x => { run += x.qty; return { ...x, cumulative: total > 0 ? (run/total)*100 : 0 }; }), total, allCategories: s.length };
+}
+function renderParetoAnalysis(recs) {
+    const dim = $('#paretoDimension').value || 'ncDescription', lim = $('#paretoLimit').value || '10';
+    const d = getParetoData(recs, dim, lim);
+    $('#paretoStats').innerHTML = `<div class="pareto-stat"><span class="num">${d.total}</span><span class="lbl">Total NC Qty</span></div><div class="pareto-stat"><span class="num">${d.allCategories}</span><span class="lbl">Categories</span></div><div class="pareto-stat"><span class="num">${d.rows.length?(d.rows[0].qty/d.total*100).toFixed(1):0}%</span><span class="lbl">Top Share</span></div>`;
+    if (d.rows.length) {
+        let ins = `<strong>Key finding:</strong> ${escapeHtml(d.rows[0].label)} is largest with ${d.rows[0].qty} NC qty.`;
+        const i80 = d.rows.findIndex(x => x.cumulative >= 80);
+        if (i80 > -1) ins += ` First ${i80+1} categories cover 80%.`;
+        $('#paretoInsight').innerHTML = ins;
+    } else $('#paretoInsight').textContent = 'No data.';
+    drawParetoChart(d);
+}
+function drawParetoChart(d) {
+    const c = $('#paretoCanvas'); if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const h = 360, minW = Math.max(620, d.rows.length * 82);
+    const w = Math.max(c.parentElement.clientWidth || 600, minW);
+    c.style.width = w+'px'; c.style.height = h+'px'; c.width = Math.round(w*dpr); c.height = Math.round(h*dpr);
+    const ctx = c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    const L=52,R=58,T=28,B=92, pw = w-L-R, ph = h-T-B;
+    const maxQ = Math.max(1, ...d.rows.map(x=>x.qty));
+    ctx.fillStyle='#7f8c8d'; ctx.strokeStyle='#e3e8ed'; ctx.lineWidth=1; ctx.font='11px Segoe UI';
+    for (let i=0;i<=4;i++){ const y=T+ph-(ph*i/4), v=Math.round(maxQ*i/4); ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(w-R,y); ctx.stroke(); ctx.fillText(String(v), 8, y+4); }
+    for (let i=0;i<=4;i++){ const y=T+ph-(ph*i/4); ctx.fillText(i*25+'%', w-R+10, y+4); }
+    if (!d.rows.length) { ctx.textAlign='center'; ctx.font='14px Segoe UI'; ctx.fillText('No data', w/2, h/2); return; }
+    const slot = pw / d.rows.length, barW = Math.min(54, slot*0.62), pts = [];
+    d.rows.forEach((row,i) => {
+        const x = L + slot*i + (slot-barW)/2, bh = (row.qty/maxQ)*ph, y = T+ph-bh;
+        ctx.fillStyle='#e74c3c'; ctx.fillRect(x, y, barW, bh);
+        ctx.fillStyle='#2c3e50'; ctx.textAlign='center'; ctx.font='bold 11px Segoe UI'; ctx.fillText(String(row.qty), x+barW/2, Math.max(T+12, y-6));
+        const lbl = row.label.length > 18 ? row.label.slice(0,16)+'…' : row.label;
+        ctx.fillStyle='#7f8c8d'; ctx.font='10px Segoe UI'; ctx.fillText(lbl, x+barW/2, T+ph+18);
+        pts.push({ x: x+barW/2, y: T+ph-(row.cumulative/100)*ph });
+    });
+    ctx.beginPath(); pts.forEach((p,i)=>{ if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
+    ctx.strokeStyle='#e67e22'; ctx.lineWidth=3; ctx.stroke();
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fillStyle='#e67e22'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); });
+    const y80 = T + ph*0.20;
+    ctx.beginPath(); ctx.setLineDash([6,5]); ctx.moveTo(L, y80); ctx.lineTo(w-R, y80); ctx.strokeStyle='#b7bec6'; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+}
+function renderMonthlySummary(recs) {
+    const map = {};
+    recs.forEach(r => { const m = (r.date||'').slice(0,7); if (!m) return; if (!map[m]) map[m] = { month:m, ok:0, nc:0, entries:0 }; map[m].ok += parseInt(r.okQty)||0; map[m].nc += parseInt(r.ncQty)||0; map[m].entries++; });
+    const sum = Object.values(map).sort((a,b)=>b.month.localeCompare(a.month)).map(m => ({ ...m, pct: (m.ok+m.nc)>0?(m.nc/(m.ok+m.nc)*100):0 }));
+    const el = $('#monthlySummaryContainer');
+    if (!sum.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-chart-pie"></i><p>No data yet.</p></div>`; return; }
+    el.innerHTML = sum.map(m => {
+        const c = m.pct >= 5 ? 'var(--danger)' : (m.pct >= 2 ? 'var(--accent)' : 'var(--success)');
+        const nm = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const lbl = (() => { const [y, mo] = m.month.split('-'); return `${nm[parseInt(mo,10)-1]||mo} ${y}`; })();
+        return `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(lbl)}</span><span class="secondary">${m.entries} entries • OK ${m.ok} / NC ${m.nc}</span></div><div class="actions"><span class="badge nc" style="background:${c}">${m.pct.toFixed(1)}% NC</span></div></div>`;
+    }).join('');
+}
+let currentPage = 1, listFilteredRecords = [];
+function renderRecordsList(recs) {
+    const pt = $('#listFilterPart').value.trim().toLowerCase(), op = $('#listFilterOperator').value.trim().toLowerCase();
+    const st = $('#listFilterNcStage').value.trim(), nd = $('#listFilterNcDesc').value.trim().toLowerCase(), jb = $('#listFilterJob').value.trim().toLowerCase();
+    let f = recs || [];
+    if (pt) f = f.filter(r => (r.partNumber||'').toLowerCase().includes(pt));
+    if (op) f = f.filter(r => (r.operatorName||'').toLowerCase().includes(op));
+    if (st) f = f.filter(r => eqIgnoreCase(r.ncStage, st));
+    if (nd) f = f.filter(r => (r.ncDescription||'').toLowerCase().includes(nd));
+    if (jb) f = f.filter(r => (r.jobNo||'').toLowerCase().includes(jb));
+    listFilteredRecords = f;
+    const totalP = Math.ceil(f.length / CONFIG.PAGE_SIZE) || 1;
+    if (currentPage > totalP) currentPage = totalP;
+    const start = (currentPage-1) * CONFIG.PAGE_SIZE;
+    const page = f.slice(start, start + CONFIG.PAGE_SIZE);
+    const el = $('#recordsListContainer');
+    if (!page.length) el.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>No records match.</p></div>`;
+    else {
+        el.innerHTML = page.map(r => {
+            const ncB = parseInt(r.ncQty) > 0 ? 'nc' : 'ok', ncL = parseInt(r.ncQty) > 0 ? 'NC' : 'OK';
+            const pr = readProject(r), pc = pr === 'FAKRA' ? 'fakra' : '';
+            const ep = getEffectiveNcPart(r), stat = getRecordStatus(r), sc = getStatusColor(r);
+            return `<div class="record-item" data-id="${escapeHtml(r.id)}">
+                <div class="row"><span class="project-badge ${pc}">${escapeHtml(pr)}</span><span class="label">Date:</span><span class="value">${escapeHtml(r.date||'')}</span><span class="label">Shift:</span><span class="value">${escapeHtml(r.shift||'')}</span><span class="label">Part:</span><span class="value">${escapeHtml(r.partNumber||'')}</span><span class="label">Inspector:</span><span class="value">${escapeHtml(r.inspectorName||'')}</span><span class="label">Operator:</span><span class="value">${escapeHtml(r.operatorName||'')}</span></div>
+                <div class="row" style="margin-top:4px"><span class="label">Job:</span><span class="value">${escapeHtml(r.jobNo||'')}</span><span class="badge ${ncB}">${ncL} ${escapeHtml(r.okQty||0)} / ${escapeHtml(r.ncQty||0)}</span><span class="badge" style="background:${sc}">${escapeHtml(stat)}</span></div>
+                <div class="row" style="margin-top:4px;font-size:.8rem;color:var(--text-light)"><span><strong>Stage:</strong> ${escapeHtml(r.ncStage||'')}</span><span>•</span><span><strong>Part:</strong> ${escapeHtml(ep)}${r.ncPartDetail?' - '+escapeHtml(r.ncPartDetail):''}</span><span>•</span><span><strong>Defect:</strong> ${escapeHtml(r.ncDescription||'')}</span></div>
+                <div class="row" style="margin-top:2px;font-size:.8rem;color:var(--text-light)"><span>${escapeHtml(r.requiredDisposition||'')}</span>${r.reworkBy?`<span>• Rework: ${escapeHtml(r.reworkBy)} (${escapeHtml(r.reworkDate||'')})</span>`:''}${r.actionTaken?`<span>• ${escapeHtml(r.actionTaken)}</span>`:''}</div>
+                <div class="record-actions"><button class="btn-edit-sm" data-id="${escapeHtml(r.id)}"><i class="fas fa-edit"></i> Edit</button><button class="btn-del-sm" data-id="${escapeHtml(r.id)}"><i class="fas fa-trash"></i> Delete</button></div>
+            </div>`;
+        }).join('');
+        el.querySelectorAll('.btn-edit-sm').forEach(b => b.addEventListener('click', () => openEditPopup(b.dataset.id)));
+        el.querySelectorAll('.btn-del-sm').forEach(b => b.addEventListener('click', () => deleteRecord(b.dataset.id)));
+    }
+    $('#pageInfo').textContent = `Page ${currentPage} of ${totalP}`;
+    $('#pagePrev').disabled = currentPage <= 1;
+    $('#pageNext').disabled = currentPage >= totalP;
+}
+function openEditPopup(id) {
+    if (!state.editMode) { showToast('Editing is locked.', 'warning'); return; }
+    const r = state.records.find(x => x.id === id); if (!r) return;
+    const rp = readProject(r);
+    const po = PROJECTS.map(p => `<option value="${p}" ${rp === p ? 'selected' : ''}>${p}</option>`).join('');
+    const so = state.ncStages.map(s => `<option value="${escapeHtml(s)}" ${eqIgnoreCase(r.ncStage, s) ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+    const npo = getUniqueNcParts(), ce = getEffectiveNcPart(r);
+    $('#editPopupBody').innerHTML = `
+        <form id="editForm">
+            <div class="form-row"><div class="form-group"><label>Date</label><input type="date" class="form-control" name="date" value="${escapeHtml(r.date||'')}" /></div><div class="form-group"><label>Project</label><select class="form-control" name="project">${po}</select></div></div>
+            <div class="form-group" style="margin-top:12px"><label>Shift</label><select class="form-control" name="shift"><option ${eqIgnoreCase(r.shift,'Genral')?'selected':''}>Genral</option><option ${eqIgnoreCase(r.shift,'Shift 1')?'selected':''}>Shift 1</option><option ${eqIgnoreCase(r.shift,'Shift 2')?'selected':''}>Shift 2</option><option ${eqIgnoreCase(r.shift,'Shift 3')?'selected':''}>Shift 3</option></select></div>
+            <div class="form-group"><label>Inspector</label><input type="text" class="form-control" name="inspectorName" value="${escapeHtml(toTitleCase(r.inspectorName||''))}" /></div>
+            <div class="form-group"><label>Part Number</label><input type="text" class="form-control" name="partNumber" value="${escapeHtml(r.partNumber||'')}" /></div>
+            <div class="form-group"><label>Part Description</label><input type="text" class="form-control" name="partDescription" value="${escapeHtml(r.partDescription||'')}" /></div>
+            <div class="form-group"><label>Job No</label><input type="text" class="form-control" name="jobNo" value="${escapeHtml(r.jobNo||'')}" /></div>
+            <div class="form-group"><label>Operator</label><input type="text" class="form-control" name="operatorName" value="${escapeHtml(toTitleCase(r.operatorName||''))}" /></div>
+            <div class="form-row"><div class="form-group"><label>OK Qty</label><input type="number" class="form-control" name="okQty" value="${r.okQty||0}" /></div><div class="form-group"><label>NC Qty</label><input type="number" class="form-control" name="ncQty" value="${r.ncQty||0}" /></div></div>
+            <div class="form-group" style="margin-top:12px"><label>NC Stage</label><select class="form-control" name="ncStage">${so}</select></div>
+            <div class="form-group"><label>NC Part</label><select class="form-control" name="ncPart">${npo.map(p => `<option value="${escapeHtml(p)}" ${eqIgnoreCase(ce,p)?'selected':''}>${escapeHtml(p)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>NC Part Detail</label><input type="text" class="form-control" name="ncPartDetail" value="${escapeHtml(r.ncPartDetail||'')}" /></div>
+            <div class="form-group"><label>NC Description</label><input type="text" class="form-control" name="ncDescription" value="${escapeHtml(r.ncDescription||'')}" /></div>
+            <div class="form-group"><label>Disposition</label><select class="form-control" name="requiredDisposition"><option ${eqIgnoreCase(r.requiredDisposition,'Rework')?'selected':''}>Rework</option><option ${eqIgnoreCase(r.requiredDisposition,'Reject')?'selected':''}>Reject</option><option ${eqIgnoreCase(r.requiredDisposition,'Accept under Deviation')?'selected':''}>Accept under Deviation</option></select></div>
+            <div class="form-group"><label>Remarks</label><textarea class="form-control" name="remarks" rows="2">${escapeHtml(r.remarks||'')}</textarea></div>
+            <div class="form-group"><label>Action Taken</label><textarea class="form-control" name="actionTaken" rows="2">${escapeHtml(r.actionTaken||'')}</textarea></div>
+            <button type="submit" class="btn btn-success btn-block"><i class="fas fa-save"></i> Save Changes</button>
+        </form>`;
+    $('#editPopupOverlay').classList.add('active');
+    $('#editForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target); const upd = Object.fromEntries(fd.entries());
+        upd.id = id; upd.okQty = parseInt(upd.okQty) || 0; upd.ncQty = parseInt(upd.ncQty) || 0;
+        upd.project = normalizeProject(upd.project); upd.date = toDateString(upd.date) || upd.date;
+        upd.inspectorName = toTitleCase(upd.inspectorName||''); upd.operatorName = toTitleCase(upd.operatorName||'');
+        upd.timestamp = r.timestamp || new Date().toISOString();
+        upd.status = r.status || ''; upd.reworkBy = r.reworkBy || ''; upd.reworkDate = r.reworkDate || '';
+        upd.reworkRemark = r.reworkRemark || ''; upd.finalDisposition = r.finalDisposition || ''; upd.scrapReason = r.scrapReason || '';
+        await saveRecordUpdate(upd);
+    });
+}
+async function saveRecordUpdate(upd) {
+    abortPending(); showLoading('Saving...');
+    try {
+        const r = await apiCall('updateRecord', { record: upd });
+        if (r && r.success) {
+            const i = state.records.findIndex(x => x.id === upd.id);
+            if (i > -1) state.records[i] = upd;
+            saveToStorage(CONFIG.STORAGE_KEYS.records, state.records);
+            $('#editPopupOverlay').classList.remove('active');
+            showToast('Saved.', 'success'); applyGlobalFilters(); updateReworkBadge();
+        } else showToast('Failed: ' + (r?.error||'unknown'), 'error');
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { hideLoading(); }
+}
+async function deleteRecord(id) {
+    if (!state.editMode) { showToast('Editing locked.', 'warning'); return; }
+    if (!confirm('Delete this record?')) return;
+    abortPending(); showLoading('Deleting...');
+    try {
+        const r = await apiCall('deleteRecord', { id });
+        if (r && r.success) {
+            state.records = state.records.filter(x => x.id !== id);
+            saveToStorage(CONFIG.STORAGE_KEYS.records, state.records);
+            showToast('Deleted.', 'success'); applyGlobalFilters(); updateReworkBadge();
+        } else showToast('Failed: ' + (r?.error||'unknown'), 'error');
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    finally { hideLoading(); }
+}
+function exportExcel() {
+    const recs = getFilteredRecords();
+    if (!recs.length) { showToast('No records to export.', 'warning'); return; }
+    const rows = recs.map(r => ({
+        'Project': readProject(r), 'Date': r.date || '', 'Shift': r.shift || '',
+        'Inspector': toTitleCase(r.inspectorName || ''), 'Part Number': r.partNumber || '',
+        'Part Description': r.partDescription || '', 'Job No': r.jobNo || '',
+        'Operator': toTitleCase(r.operatorName || ''), 'OK Qty': r.okQty || 0, 'NC Qty': r.ncQty || 0,
+        'NC Description': r.ncDescription || '', 'NC Stage': r.ncStage || '',
+        'NC Part': getEffectiveNcPart(r), 'Part Detail': r.ncPartDetail || '',
+        'Disposition': r.requiredDisposition || '', 'Status': getRecordStatus(r),
+        'Rework By': r.reworkBy || '', 'Rework Date': r.reworkDate || '',
+        'Rework Remark': r.reworkRemark || '', 'Final Disposition': r.finalDisposition || '',
+        'Scrap Reason': r.scrapReason || '',
+        'Remarks': r.remarks || '', 'Action Taken': r.actionTaken || '', 'Timestamp': r.timestamp || ''
+    }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Records');
+    XLSX.writeFile(wb, `IHR_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast(`Exported ${recs.length} records.`, 'success');
+}
+</script>
+</body>
+</html>
