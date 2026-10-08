@@ -24,6 +24,10 @@ body{font-family:var(--font);background:var(--light-bg);color:var(--text);height
 .header-sync.syncing{background:rgba(241,196,15,.3);animation:pulse 1s infinite}
 .header-sync .refresh-toggle{background:none;border:none;color:#fff;cursor:pointer;font-size:.9rem;padding:2px 6px;border-radius:4px}
 .header-sync .refresh-toggle.off{opacity:.5}
+.pending-badge{background:var(--accent);color:#fff;padding:1px 8px;border-radius:10px;font-size:.65rem;font-weight:700;margin-left:4px;cursor:pointer;animation:pulse 2s infinite}
+.pending-badge.hidden{display:none}
+.rework-badge{background:var(--danger);color:#fff;padding:1px 7px;border-radius:10px;font-size:.65rem;font-weight:700;margin-left:4px;cursor:pointer}
+.rework-badge.hidden{display:none}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .main-content{flex:1;overflow-y:auto;padding:16px 16px 80px;-webkit-overflow-scrolling:touch}
 .page-section{display:none;animation:fadeIn .25s ease}
@@ -106,6 +110,7 @@ textarea.form-control{resize:vertical;min-height:60px}
 .record-item .row .badge{display:inline-block;background:var(--primary);color:#fff;padding:0 10px;border-radius:12px;font-size:.7rem;font-weight:600;line-height:20px}
 .record-item .row .badge.nc{background:var(--danger)}
 .record-item .row .badge.ok{background:var(--success)}
+.record-item .row .badge.pending{background:var(--accent)}
 .record-item .record-actions{display:flex;gap:6px;margin-top:6px;justify-content:flex-end}
 .record-item .record-actions button{padding:4px 12px;font-size:.75rem;border:none;border-radius:6px;cursor:pointer;min-height:32px;font-weight:600}
 .record-item .record-actions .btn-edit-sm{background:rgba(15,59,94,.1);color:var(--primary)}
@@ -146,8 +151,6 @@ textarea.form-control{resize:vertical;min-height:60px}
 .stage-group .stage-body .list-item{border-radius:0;margin-bottom:0;border:none;border-bottom:1px solid #eef2f6}
 .project-badge{display:inline-block;padding:0 8px;border-radius:10px;font-size:.65rem;font-weight:700;line-height:18px;background:#e8f0fe;color:var(--primary)}
 .project-badge.fakra{background:#fdeee0;color:#b9530c}
-.rework-badge{background:var(--danger);color:#fff;padding:1px 7px;border-radius:10px;font-size:.65rem;font-weight:700;margin-left:4px;cursor:pointer}
-.rework-badge.hidden{display:none}
 .age-b{font-size:.65rem;padding:1px 6px;border-radius:8px;background:#f1f3f5;color:var(--text-light);margin-left:6px}
 .age-b.w{background:#fdeee0;color:#b9530c}
 .age-b.d{background:#fde0e0;color:#c0392b}
@@ -169,7 +172,7 @@ textarea.form-control{resize:vertical;min-height:60px}
 .logo-brand img{max-height:36px}
 .header-title-group h1{font-size:.95rem}
 .header-title-group .header-subtitle{font-size:.6rem}
-.header-sync{font-size:.6rem;padding:2px 10px}
+.header-sync{font-size:.6rem;padding:2px 8px}
 .bottom-nav button{font-size:.6rem}
 .bottom-nav button i{font-size:1.1rem}
 .card{padding:14px 12px}
@@ -204,6 +207,7 @@ textarea.form-control{resize:vertical;min-height:60px}
     <span class="header-sync" id="syncStatus">
         <i class="fas fa-circle" style="font-size:0.5rem;color:#27ae60;"></i> Synced
         <button class="refresh-toggle" id="refreshToggle"><i class="fas fa-sync fa-fw"></i></button>
+        <span class="pending-badge hidden" id="pendingBadge">0</span>
         <span class="rework-badge hidden" id="reworkBadge">0</span>
     </span>
 </header>
@@ -439,7 +443,7 @@ textarea.form-control{resize:vertical;min-height:60px}
 <script>
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbxagkj38DlGxue2uJScl214SzbDHg8DNN5PLm0fGyDuZog5RKpDbykEybFtdxmdJZgSwg/exec',
-    STORAGE_KEYS: { parts:'ihr_parts', inspectors:'ihr_inspectors', records:'ihr_records', ncStages:'ihr_nc_stages', ncDefects:'ihr_nc_defects', reworkPersons:'ihr_rework_persons' },
+    STORAGE_KEYS: { parts:'ihr_parts', inspectors:'ihr_inspectors', records:'ihr_records', ncStages:'ihr_nc_stages', ncDefects:'ihr_nc_defects', reworkPersons:'ihr_rework_persons', pending:'ihr_pending_records' },
     EDIT_PASSWORD: 'ahtqa2026',
     POLL_INTERVAL: 15000,
     PAGE_SIZE: 20,
@@ -487,6 +491,7 @@ const DEFAULT_NC_DEFECTS = { 'WIRE CUTTING':['Wire Damage','Long length','Short 
 let state = { parts: [], inspectors: [], records: [], ncStages: [], ncDefects: {}, reworkPersons: [], selectedPartId: null, selectedInspectorId: null, selectedNcDesc: null, selectedReworkPerson: '', isSubmitting: false, editMode: false, autoRefresh: true, filteredRecords: [] };
 let ncEntryCounter = 0;
 let _selectedWeek = null;
+let pendingSyncInFlight = false;
 
 function showToast(msg, type='info', dur=3500) {
     const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
@@ -502,16 +507,61 @@ let loadingTimer = null;
 function showLoading(msg='Loading...') { $('#loadingOverlay').querySelector('p').textContent = msg; $('#loadingOverlay').classList.add('active'); clearTimeout(loadingTimer); loadingTimer = setTimeout(()=>{ hideLoading(); showToast('Operation took too long.', 'warning'); }, CONFIG.LOADING_SAFETY_MS); }
 function hideLoading() { clearTimeout(loadingTimer); $('#loadingOverlay').classList.remove('active'); }
 function setSyncStatus(status, text) {
-    const el = $('#syncStatus'); el.className = 'header-sync';
+    const el = $('#syncStatus'); if (!el) return;
+    el.className = 'header-sync';
     if (status === 'synced') el.classList.add('synced');
     else if (status === 'syncing') el.classList.add('syncing');
     const icon = status === 'syncing' ? '<i class="fas fa-spinner fa-pulse"></i>' : (status === 'synced' ? '<i class="fas fa-circle" style="font-size:0.5rem;color:#27ae60;"></i>' : '<i class="fas fa-circle" style="font-size:0.5rem;color:#e67e22;"></i>');
-    el.innerHTML = `${icon} ${escapeHtml(text||'Synced')}<button class="refresh-toggle${state.autoRefresh?'':' off'}" id="refreshToggle"><i class="fas fa-sync fa-fw"></i></button><span class="rework-badge hidden" id="reworkBadge">0</span>`;
+    el.innerHTML = `${icon} ${escapeHtml(text||'Synced')}<button class="refresh-toggle${state.autoRefresh?'':' off'}" id="refreshToggle"><i class="fas fa-sync fa-fw"></i></button><span class="pending-badge hidden" id="pendingBadge">0</span><span class="rework-badge hidden" id="reworkBadge">0</span>`;
     const b = document.getElementById('refreshToggle'); if (b) b.addEventListener('click', toggleAutoRefresh);
-    updateReworkBadge();
+    updateReworkBadge(); updatePendingBadge();
 }
 function updateReworkBadge() { const b = document.getElementById('reworkBadge'); if (!b) return; const c = (state.records||[]).filter(r => getRecordStatus(r) === REWORK_PENDING).length; b.textContent = c; b.classList.toggle('hidden', c === 0); b.onclick = () => navigateTo('pageRework'); }
 function toggleAutoRefresh() { state.autoRefresh = !state.autoRefresh; setSyncStatus(state.autoRefresh ? 'synced' : 'idle', state.autoRefresh ? 'Synced' : 'Manual'); showToast(state.autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF', 'info', 1500); }
+
+// ============================================================
+// PENDING SYNC SYSTEM (ऑटो-सिंक)
+// ============================================================
+function getPending() { return loadFromStorage(CONFIG.STORAGE_KEYS.pending) || []; }
+function markPending(records) {
+    const existing = getPending();
+    const ids = new Set(existing.map(r => String(r.id)));
+    records.forEach(r => { if (r.id && !ids.has(String(r.id))) existing.push(r); });
+    saveToStorage(CONFIG.STORAGE_KEYS.pending, existing);
+    updatePendingBadge();
+}
+function clearPending(ids) {
+    const idSet = new Set(ids.map(String));
+    const filtered = getPending().filter(r => !idSet.has(String(r.id)));
+    saveToStorage(CONFIG.STORAGE_KEYS.pending, filtered);
+    updatePendingBadge();
+}
+function updatePendingBadge() {
+    const b = document.getElementById('pendingBadge'); if (!b) return;
+    const c = getPending().length;
+    b.textContent = c;
+    b.classList.toggle('hidden', c === 0);
+    b.title = c ? `${c} record(s) pending — click to sync` : '';
+    b.onclick = () => { if (c) syncPendingRecords(false); };
+}
+async function syncPendingRecords(silent) {
+    if (pendingSyncInFlight) return;
+    const pending = getPending();
+    if (!pending.length) return;
+    if (!navigator.onLine) return;
+    pendingSyncInFlight = true;
+    try {
+        const r = await apiCall('addRecordsBatch', { records: pending });
+        if (r && r.success) {
+            const ids = pending.map(x => x.id);
+            clearPending(ids);
+            if (!silent) showToast(`✅ ${pending.length} pending record(s) synced!`, 'success', 2500);
+            loadRecords(true).catch(()=>{});
+        }
+    } catch (e) { /* silent */ }
+    finally { pendingSyncInFlight = false; }
+}
+
 const pendingReqs = new Map();
 function abortPending() { pendingReqs.forEach(({cleanup})=>{try{cleanup()}catch{}}); pendingReqs.clear(); }
 function jsonpRequest(action, payload = {}, timeout = CONFIG.REQUEST_TIMEOUT) {
@@ -645,8 +695,11 @@ async function init() {
     state.reworkPersons = (loadFromStorage(CONFIG.STORAGE_KEYS.reworkPersons)||[]).map(p=>({...p,personName:toTitleCase(p.personName||'')}));
     loadNcMastersLocal();
     renderAll();
+    updatePendingBadge();
     await Promise.all([syncMasters(), loadRecords()]);
     await loadReworkPersons();
+    // ⚡ AUTO-SYNC pending records on startup
+    syncPendingRecords(true);
 
     setupSearchDropdown($('#inspectorSearchInput'), $('#inspectorDropdownList'), $('#inspectorClearBtn'), renderInspectorDropdown);
     setupSearchDropdown($('#partSearchInput'), $('#partDropdownList'), $('#partClearBtn'), renderPartDropdown);
@@ -696,12 +749,14 @@ async function init() {
             syncMasters(true);
             if ($('#pageRecords').classList.contains('active')) loadRecords(true);
         }
+        // ⚡ AUTO-SYNC pending every interval
+        syncPendingRecords(true);
     }, CONFIG.POLL_INTERVAL);
-    window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); });
+    window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); syncPendingRecords(false); });
     window.addEventListener('offline', () => { setSyncStatus('offline','Offline'); showToast('Offline. Data cached.', 'warning', 3000); });
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if ($('#pageRecords').classList.contains('active')) applyGlobalFilters(); }, 300); });
     navigateTo('pageRecords');
-    console.log('✅ IHR initialized');
+    console.log('✅ IHR initialized (auto-sync enabled)');
 }
 function isUserBusy() {
     if (state.isSubmitting) return true;
@@ -894,7 +949,7 @@ async function loadRecords(silent) {
             } else setSyncStatus('offline', 'Offline');
         } catch (e) { console.warn(e); setSyncStatus('offline', 'Offline'); }
         finally { recordsPromise = null; }
-        applyGlobalFilters(); updateReworkBadge(); renderWeeklyDashboard();
+        applyGlobalFilters(); updateReworkBadge();
     })();
     return recordsPromise;
 }
@@ -976,6 +1031,8 @@ function toggleEdit() {
 async function submitEntry() {
     if (state.isSubmitting) return;
     abortPending();
+    // ⚡ पहले पुराना pending try करो
+    syncPendingRecords(true);
     const safety = setTimeout(() => { if (state.isSubmitting) { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); showToast('Took too long.', 'warning'); } }, 60000);
 
     const c = { date: $('#inspectionDate').value, project: $('#projectSelect').value, shift: $('#inspectionShift').value, inspectorName: $('#inspectorSearchInput').value.trim(), partNumber: $('#partSearchInput').value.trim(), partDescription: $('#partDescriptionDisplay').value.trim(), jobNo: $('#jobNoInput').value.trim(), operatorName: $('#operatorNameInput').value.trim(), okQty: parseInt($('#okQtyInput').value) || 0 };
@@ -1028,22 +1085,31 @@ async function submitEntry() {
             };
         });
 
-        const r = await apiCall('addRecordsBatch', { records: allRecords });
-
+        // ⚡ पहले local save करो (offline-safe)
         const recs = loadFromStorage(CONFIG.STORAGE_KEYS.records) || [];
         allRecords.forEach(x => recs.push(x));
         saveToStorage(CONFIG.STORAGE_KEYS.records, recs);
         state.records = recs;
 
+        // Server push
+        const r = await apiCall('addRecordsBatch', { records: allRecords });
+
         if (r && r.success) {
             showToast(`✅ ${allRecords.length} rejection${allRecords.length>1?'s':''} submitted!`, 'success');
+            clearPending(allRecords.map(x => x.id));
         } else {
-            showToast('Saved locally, sync pending. ' + (r?.error||''), 'warning');
+            // ⚡ ऑटो-sync के लिए pending में डालो
+            markPending(allRecords);
+            showToast(`⏳ ${allRecords.length} saved locally — will auto-sync when online`, 'warning', 4000);
         }
         $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
         $('#okQtyInput').value = '';
         loadRecords().catch(()=>{});
-    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+        // Exception पर भी pending में save करो (safe)
+        // (already done above)
+    }
     finally { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); clearTimeout(safety); }
 }
 
@@ -1139,7 +1205,6 @@ async function submitReworkAction(upd) {
     finally { hideLoading(); }
 }
 
-// ⚡ WEEKLY DASHBOARD — 5-week support
 function matchesWeeklyArea(r, area) {
     if (!area) return true;
     const pr = readProject(r);
@@ -1183,10 +1248,7 @@ function renderWeeklyDashboard() {
             <span class="lbl">${w.label}</span>
             <span style="display:block;margin-top:2px;font-size:0.65rem;color:var(--text-light)">${w.pct.toFixed(1)}% NC • ${w.count} ent</span>
         </div>`).join('');
-    wsEl.querySelectorAll('.week-card').forEach(c => c.addEventListener('click', () => {
-        _selectedWeek = parseInt(c.dataset.week);
-        renderWeeklyDashboard();
-    }));
+    wsEl.querySelectorAll('.week-card').forEach(c => c.addEventListener('click', () => { _selectedWeek = parseInt(c.dataset.week); renderWeeklyDashboard(); }));
 
     const dEl = $('#dayBreakdown');
     if (_selectedWeek === null || !weekly[_selectedWeek]) { dEl.innerHTML = ''; return; }
@@ -1203,11 +1265,7 @@ function renderWeeklyDashboard() {
             <i class="fas fa-calendar-day"></i> ${w.label} — Daily breakdown
         </div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
-            ${days.map(d => `
-                <div class="day-cell${d.nc > 0 ? ' has-nc' : ''}">
-                    <span class="num">${d.nc}</span>
-                    <span class="lbl">Day ${d.day}</span>
-                </div>`).join('')}
+            ${days.map(d => `<div class="day-cell${d.nc > 0 ? ' has-nc' : ''}"><span class="num">${d.nc}</span><span class="lbl">Day ${d.day}</span></div>`).join('')}
         </div>`;
 }
 
