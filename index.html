@@ -245,6 +245,12 @@ textarea.form-control{resize:vertical;min-height:60px}
     <div class="card">
         <div class="card-title"><i class="fas fa-user-tie"></i> Inspector Master</div>
         <div class="form-group"><label>Inspector Name <span class="required">*</span></label><input type="text" class="form-control" id="inspectorNameInput" placeholder="e.g. John Smith" /></div>
+        <div class="form-group"><label>Inspector Type <span class="required">*</span></label>
+            <select class="form-control" id="inspectorTypeInput">
+                <option value="General">General (Wire / Crimp / Insert / Tape)</option>
+                <option value="Testing & Final">Testing &amp; Final Inspection</option>
+            </select>
+        </div>
         <button class="btn btn-primary btn-block" id="addInspectorBtn" disabled><i class="fas fa-plus"></i> Add Inspector</button>
         <div class="divider"></div>
         <div id="inspectorListContainer"><div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div></div>
@@ -284,6 +290,12 @@ textarea.form-control{resize:vertical;min-height:60px}
         </div>
         <div class="form-group" style="margin-top:14px"><label>Shift <span class="required">*</span></label>
             <select class="form-control" id="inspectionShift"><option value="">Select</option><option value="Genral">Genral</option><option value="Shift 1">Shift 1</option><option value="Shift 2">Shift 2</option><option value="Shift 3">Shift 3</option></select>
+        </div>
+         <div class="form-group"><label>Inspector Type <span class="required">*</span></label>
+            <select class="form-control" id="inspectorTypeFilter">
+                <option value="General">General (Wire / Crimp / Insert / Tape)</option>
+                <option value="Testing & Final">Testing &amp; Final Inspection</option>
+            </select>
         </div>
         <div class="form-group"><label>Inspector Name <span class="required">*</span></label>
             <div class="search-dropdown-wrap"><input type="text" class="form-control" id="inspectorSearchInput" placeholder="Type to search..." autocomplete="off" /><button class="dropdown-clear" id="inspectorClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="inspectorDropdownList"></div></div>
@@ -800,6 +812,14 @@ function setupGlobalSearch(input, list, clearBtn, renderFn) {
     document.addEventListener('click', e => { const w = input.closest('.search-dropdown-wrap'); if (w && !w.contains(e.target)) list.classList.remove('open'); });
 }
 function setupFormEvents() {
+	// Stage-specific inspector dropdown
+    	$('#inspectorTypeFilter').addEventListener('change', () => {
+        // Clear selected inspector since list changed
+        	$('#inspectorSearchInput').value = '';
+        state.selectedInspectorId = null;
+        	$('#inspectorClearBtn').classList.remove('visible');
+        renderInspectorDropdown('');
+    });
     $('#projectSelect').addEventListener('change', () => {
         renderPartDropdown($('#partSearchInput').value);
         const valid = (state.parts||[]).some(p => (p.partNumber||'').toLowerCase() === $('#partSearchInput').value.trim().toLowerCase() && (!$('#projectSelect').value || !p.project || p.project === 'Both' || p.project === $('#projectSelect').value));
@@ -832,7 +852,20 @@ function renderInspectors() {
     const el = $('#inspectorListContainer');
     const active = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
     if (!active.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div>`; return; }
-    el.innerHTML = active.map(i => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(toTitleCase(i.inspectorName||''))}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(i.id||'')}"><i class="fas fa-user-minus"></i></button></div></div>`).join('');
+    const general = active.filter(i => (i.stageType || 'General') === 'General');
+    const testingFinal = active.filter(i => (i.stageType || 'General') === 'Testing & Final');
+    let html = '';
+    if (general.length) {
+        html += `<div class="stage-group"><div class="stage-head"><span>General Inspectors<span class="stage-count">(${general.length})</span></span></div><div class="stage-body">`;
+        html += general.map(i => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(toTitleCase(i.inspectorName||''))}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(i.id||'')}"><i class="fas fa-user-minus"></i></button></div></div>`).join('');
+        html += `</div></div>`;
+    }
+    if (testingFinal.length) {
+        html += `<div class="stage-group"><div class="stage-head" style="background:var(--accent)"><span>Testing &amp; Final Inspectors<span class="stage-count">(${testingFinal.length})</span></span></div><div class="stage-body">`;
+        html += testingFinal.map(i => `<div class="list-item"><div class="info"><span class="primary">${escapeHtml(toTitleCase(i.inspectorName||''))}</span></div><div class="actions"><button class="btn-del" data-id="${escapeHtml(i.id||'')}"><i class="fas fa-user-minus"></i></button></div></div>`).join('');
+        html += `</div></div>`;
+    }
+    el.innerHTML = html;
     el.querySelectorAll('.btn-del').forEach(b => { b.addEventListener('click', () => removeInspector(b.dataset.id)); applyEditLock(b); });
 }
 function renderReworkPersonMaster() {
@@ -866,10 +899,12 @@ function renderAll() { renderParts(); renderInspectors(); renderReworkPersonMast
 function renderDropdowns() { renderInspectorDropdown(); renderPartDropdown(); renderGlobalFilterDropdowns(); renderNcPartFilterOptions(); renderReworkPersonDropdown(); }
 function renderInspectorDropdown(filter='') {
     const list = $('#inspectorDropdownList');
-    const search = filter.toLowerCase().trim();
-    const insp = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
+    const search = (filter || '').toLowerCase().trim();
+    const typeFilter = $('#inspectorTypeFilter').value || 'General';
+    let insp = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
+    insp = insp.filter(i => (i.stageType || 'General') === typeFilter);
     const f = search ? insp.filter(i => (i.inspectorName||'').toLowerCase().includes(search)) : insp;
-    if (!f.length) { list.innerHTML = `<div class="no-results">No inspectors</div>`; return; }
+    if (!f.length) { list.innerHTML = `<div class="no-results">No ${typeFilter} inspectors</div>`; return; }
     list.innerHTML = f.map(i => { const d = toTitleCase(i.inspectorName||''); return `<div class="dropdown-item" data-id="${escapeHtml(i.id||'')}" data-name="${escapeHtml(d)}">${search?highlightText(d,search):escapeHtml(d)}</div>`; }).join('');
     list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#inspectorSearchInput').value = el.dataset.name; state.selectedInspectorId = el.dataset.id; list.classList.remove('open'); $('#inspectorClearBtn').classList.add('visible'); }));
 }
@@ -920,7 +955,7 @@ async function syncMasters(silent) {
                 const pm = {}; localParts.forEach(p => { if (p && p.partNumber) pm[String(p.partNumber).toLowerCase()] = p.project || p.plant; });
                 state.parts = parts.map(p => { const k = String(p.partNumber||'').toLowerCase(); return { ...p, project: p.project || p.plant || pm[k] || 'Both' }; });
                 const seen = new Set();
-                state.inspectors = inspectors.filter(i => String(i.inspectorName||'').trim().toLowerCase() !== 'admin').map(i => ({ ...i, id: (i.id && String(i.id).trim()) || generateId(), inspectorName: toTitleCase(i.inspectorName||'') })).filter(i => { const k = normalizeKey(i.inspectorName); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+                state.inspectors = inspectors.filter(i => String(i.inspectorName||'').trim().toLowerCase() !== 'admin').map(i => ({ ...i, id: (i.id && String(i.id).trim()) || generateId(), inspectorName: toTitleCase(i.inspectorName||''), stageType: i.stageType || 'General' })).filter(i => { const k = normalizeKey(i.inspectorName) + '|' + normalizeKey(i.stageType); if (!k || seen.has(k)) return false; seen.add(k); return true; });
                 saveToStorage(CONFIG.STORAGE_KEYS.parts, state.parts);
                 saveToStorage(CONFIG.STORAGE_KEYS.inspectors, state.inspectors);
                 setSyncStatus('synced', 'Synced');
@@ -976,12 +1011,13 @@ async function addPart() { if (!requireEdit()) return;
 async function deletePart(id) { if (!requireEdit()) return; if (!confirm('Delete this part?')) return; const r = await apiCall('deletePart', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Part deleted.', 'success'); }
 async function addInspector() { if (!requireEdit()) return;
     const name = toTitleCase($('#inspectorNameInput').value);
+    const stageType = $('#inspectorTypeInput').value || 'General';
     if (!name) { showToast('Enter name.', 'error'); return; }
     if (name.toLowerCase() === 'admin') { showToast('Admin is not inspector.', 'error'); return; }
-    if (state.inspectors.some(i => eqIgnoreCase(i.inspectorName, name))) { showToast('Exists.', 'error'); return; }
-    const ni = { id: generateId(), inspectorName: name, active: true };
-    const r = await apiCall('addInspector', { inspector: ni }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; }
-    $('#inspectorNameInput').value = ''; await syncMasters(true); showToast('Inspector added.', 'success');
+    if (state.inspectors.some(i => eqIgnoreCase(i.inspectorName, name) && (i.stageType || 'General') === stageType)) { showToast('This inspector already exists for ' + stageType + '.', 'error'); return; }
+    const ni = { id: generateId(), inspectorName: name, active: true, stageType: stageType };
+    const r = await apiCall('addInspector', { inspector: ni }); if (!r || r.success === false) { showToast('Failed: ' + (r?.error||'unknown'), 'error'); return; }
+    $('#inspectorNameInput').value = ''; await syncMasters(true); showToast('Inspector added to ' + stageType + '.', 'success');
 }
 async function removeInspector(id) { if (!requireEdit()) return; if (!confirm('Delete inspector?')) return; const r = await apiCall('removeInspector', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Deleted.', 'success'); }
 async function addReworkPerson() { if (!requireEdit()) return;
@@ -1043,8 +1079,8 @@ async function submitEntry() {
     if (!c.partNumber) { showToast('Select part.', 'error'); clearTimeout(safety); return; }
     if (!c.jobNo) { showToast('Enter Job No.', 'error'); clearTimeout(safety); return; }
     if (!c.operatorName) { showToast('Enter operator.', 'error'); clearTimeout(safety); return; }
-    if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false)) { showToast('Inspector not found.', 'error'); clearTimeout(safety); return; }
-    if (!state.parts.some(p => eqIgnoreCase(p.partNumber, c.partNumber))) { showToast('Part not found.', 'error'); clearTimeout(safety); return; }
+    const selectedType = $('#inspectorTypeFilter').value || 'General';
+if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false && (i.stageType || 'General') === selectedType)) { showToast(`Inspector "${c.inspectorName}" not found in ${selectedType} list.`, 'error'); clearTimeout(safety); return; }
 
     const ncs = collectNcEntries();
     if (!ncs.length) { showToast('Add at least one rejection.', 'error'); clearTimeout(safety); return; }
