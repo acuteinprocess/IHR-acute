@@ -296,9 +296,17 @@ textarea.form-control{resize:vertical;min-height:60px}
                 <option value="General">General (Wire / Crimp / Insert / Tape)</option>
                 <option value="Testing & Final">Testing &amp; Final Inspection</option>
             </select>
-        </div>
-        <div class="form-group"><label>Inspector Name <span class="required">*</span></label>
+                <div class="form-group">
+            <label>Inspector Name <span class="required">*</span></label>
             <div class="search-dropdown-wrap"><input type="text" class="form-control" id="inspectorSearchInput" placeholder="Type to search..." autocomplete="off" /><button class="dropdown-clear" id="inspectorClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="inspectorDropdownList"></div></div>
+            <div style="margin-top:6px;text-align:right">
+                <a href="#" id="toggleTempInspector" style="color:var(--accent);font-size:0.8rem;font-weight:600;text-decoration:none">➕ Add Temporary Name (not in master)</a>
+            </div>
+        </div>
+        <div class="form-group hidden" id="tempInspectorGroup" style="background:#fff8ec;padding:12px;border-radius:8px;border:1px dashed var(--accent)">
+            <label style="color:var(--accent)">Temporary Inspector Name <span class="required">*</span></label>
+            <input type="text" class="form-control" id="tempInspectorInput" placeholder="Type name (won't be saved in master)" />
+            <div style="margin-top:6px;font-size:0.75rem;color:var(--text-light)"><i class="fas fa-info-circle"></i> This name is only for this entry. It won't appear in dropdown next time.</div>
         </div>
         <div class="form-group"><label>Part Number <span class="required">*</span></label>
             <div class="search-dropdown-wrap"><input type="text" class="form-control" id="partSearchInput" placeholder="Type part..." autocomplete="off" /><button class="dropdown-clear" id="partClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="partDropdownList"></div></div>
@@ -820,6 +828,21 @@ function setupFormEvents() {
         	$('#inspectorClearBtn').classList.remove('visible');
         renderInspectorDropdown('');
     });
+    // ➕ Temporary inspector toggle
+    $('#toggleTempInspector').addEventListener('click', (e) => {
+        e.preventDefault();
+        const g = $('#tempInspectorGroup');
+        const hidden = g.classList.contains('hidden');
+        if (hidden) {
+            g.classList.remove('hidden');
+            $('#tempInspectorInput').focus();
+            $('#toggleTempInspector').textContent = '✖ Hide Temporary Name';
+        } else {
+            g.classList.add('hidden');
+            $('#tempInspectorInput').value = '';
+            $('#toggleTempInspector').textContent = '➕ Add Temporary Name (not in master)';
+        }
+    });
     $('#projectSelect').addEventListener('change', () => {
         renderPartDropdown($('#partSearchInput').value);
         const valid = (state.parts||[]).some(p => (p.partNumber||'').toLowerCase() === $('#partSearchInput').value.trim().toLowerCase() && (!$('#projectSelect').value || !p.project || p.project === 'Both' || p.project === $('#projectSelect').value));
@@ -1075,12 +1098,27 @@ async function submitEntry() {
     if (!c.date) { showToast('Select date.', 'error'); clearTimeout(safety); return; }
     if (!c.project) { showToast('Select project.', 'error'); clearTimeout(safety); return; }
     if (!c.shift) { showToast('Select shift.', 'error'); clearTimeout(safety); return; }
-    if (!c.inspectorName) { showToast('Select inspector.', 'error'); clearTimeout(safety); return; }
+        // Temporary inspector support
+    const tempName = $('#tempInspectorInput').value.trim();
+    const tempGroupVisible = !$('#tempInspectorGroup').classList.contains('hidden');
+    let finalInspectorName = c.inspectorName;
+    if (tempGroupVisible && tempName) {
+        finalInspectorName = toTitleCase(tempName);
+    } else if (!c.inspectorName) {
+        showToast('Select inspector or enter temporary name.', 'error');
+        clearTimeout(safety); return;
+    }
     if (!c.partNumber) { showToast('Select part.', 'error'); clearTimeout(safety); return; }
     if (!c.jobNo) { showToast('Enter Job No.', 'error'); clearTimeout(safety); return; }
     if (!c.operatorName) { showToast('Enter operator.', 'error'); clearTimeout(safety); return; }
-    const selectedType = $('#inspectorTypeFilter').value || 'General';
-if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false && (i.stageType || 'General') === selectedType)) { showToast(`Inspector "${c.inspectorName}" not found in ${selectedType} list.`, 'error'); clearTimeout(safety); return; }
+        const selectedType = $('#inspectorTypeFilter').value || 'General';
+    const usingTemp = tempGroupVisible && tempName;
+    if (!usingTemp) {
+        if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false && (i.stageType || 'General') === selectedType)) {
+            showToast(`Inspector "${c.inspectorName}" not found in ${selectedType} list.`, 'error');
+            clearTimeout(safety); return;
+        }
+    }
 
     const ncs = collectNcEntries();
     if (!ncs.length) { showToast('Add at least one rejection.', 'error'); clearTimeout(safety); return; }
@@ -1108,7 +1146,7 @@ if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) &
             return {
                 id: generateId(),
                 project: c.project, date: c.date, shift: c.shift.trim(),
-                inspectorName: toTitleCase(c.inspectorName),
+                                inspectorName: finalInspectorName,
                 partNumber: c.partNumber, partDescription: c.partDescription,
                 jobNo: c.jobNo, operatorName: toTitleCase(c.operatorName),
                 okQty: i === 0 ? c.okQty : 0,
@@ -1138,8 +1176,12 @@ if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) &
             markPending(allRecords);
             showToast(`⏳ ${allRecords.length} saved locally — will auto-sync when online`, 'warning', 4000);
         }
-        $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
+                $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
         $('#okQtyInput').value = '';
+        // Reset temporary inspector
+        $('#tempInspectorInput').value = '';
+        $('#tempInspectorGroup').classList.add('hidden');
+        $('#toggleTempInspector').textContent = '➕ Add Temporary Name (not in master)';
         loadRecords().catch(()=>{});
     } catch (e) {
         showToast('Error: ' + e.message, 'error');
