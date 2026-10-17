@@ -248,7 +248,7 @@ textarea.form-control{resize:vertical;min-height:60px}
         <div class="form-group"><label>Inspector Type <span class="required">*</span></label>
             <select class="form-control" id="inspectorTypeInput">
                 <option value="General">General (Wire / Crimp / Insert / Tape)</option>
-                <option value="Testing & Final">Testing &amp; Final Inspection</option>
+                <option value="Testing &amp; Final">Testing &amp; Final Inspection</option>
             </select>
         </div>
         <button class="btn btn-primary btn-block" id="addInspectorBtn" disabled><i class="fas fa-plus"></i> Add Inspector</button>
@@ -291,14 +291,20 @@ textarea.form-control{resize:vertical;min-height:60px}
         <div class="form-group" style="margin-top:14px"><label>Shift <span class="required">*</span></label>
             <select class="form-control" id="inspectionShift"><option value="">Select</option><option value="Genral">Genral</option><option value="Shift 1">Shift 1</option><option value="Shift 2">Shift 2</option><option value="Shift 3">Shift 3</option></select>
         </div>
-         <div class="form-group"><label>Inspector Type <span class="required">*</span></label>
+        <div class="form-group">
+            <label>Inspector Type <span class="required">*</span></label>
             <select class="form-control" id="inspectorTypeFilter">
                 <option value="General">General (Wire / Crimp / Insert / Tape)</option>
-                <option value="Testing & Final">Testing &amp; Final Inspection</option>
+                <option value="Testing &amp; Final">Testing &amp; Final Inspection</option>
             </select>
-                <div class="form-group">
+        </div>
+        <div class="form-group">
             <label>Inspector Name <span class="required">*</span></label>
-            <div class="search-dropdown-wrap"><input type="text" class="form-control" id="inspectorSearchInput" placeholder="Type to search..." autocomplete="off" /><button class="dropdown-clear" id="inspectorClearBtn"><i class="fas fa-times-circle"></i></button><div class="dropdown-list" id="inspectorDropdownList"></div></div>
+            <div class="search-dropdown-wrap">
+                <input type="text" class="form-control" id="inspectorSearchInput" placeholder="Type to search..." autocomplete="off" />
+                <button class="dropdown-clear" id="inspectorClearBtn"><i class="fas fa-times-circle"></i></button>
+                <div class="dropdown-list" id="inspectorDropdownList"></div>
+            </div>
             <div style="margin-top:6px;text-align:right">
                 <a href="#" id="toggleTempInspector" style="color:var(--accent);font-size:0.8rem;font-weight:600;text-decoration:none">➕ Add Temporary Name (not in master)</a>
             </div>
@@ -404,8 +410,8 @@ textarea.form-control{resize:vertical;min-height:60px}
                     <option value="">All Areas</option>
                     <option value="FAKRA_All">FAKRA</option>
                     <option value="Regular_CrimpArea">Regular - Crimp Area</option>
-                    <option value="Regular_Insert&TapeArea">Regular - Insert &amp; Tape</option>
-                    <option value="Regular_Test&FinalArea">Regular - Test &amp; Final</option>
+                    <option value="Regular_Insert&amp;TapeArea">Regular - Insert &amp; Tape</option>
+                    <option value="Regular_Test&amp;FinalArea">Regular - Test &amp; Final</option>
                 </select>
             </div>
         </div>
@@ -540,7 +546,7 @@ function updateReworkBadge() { const b = document.getElementById('reworkBadge');
 function toggleAutoRefresh() { state.autoRefresh = !state.autoRefresh; setSyncStatus(state.autoRefresh ? 'synced' : 'idle', state.autoRefresh ? 'Synced' : 'Manual'); showToast(state.autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF', 'info', 1500); }
 
 // ============================================================
-// PENDING SYNC SYSTEM (ऑटो-सिंक)
+// PENDING SYNC SYSTEM
 // ============================================================
 function getPending() { return loadFromStorage(CONFIG.STORAGE_KEYS.pending) || []; }
 function markPending(records) {
@@ -718,7 +724,6 @@ async function init() {
     updatePendingBadge();
     await Promise.all([syncMasters(), loadRecords()]);
     await loadReworkPersons();
-    // ⚡ AUTO-SYNC pending records on startup
     syncPendingRecords(true);
 
     setupSearchDropdown($('#inspectorSearchInput'), $('#inspectorDropdownList'), $('#inspectorClearBtn'), renderInspectorDropdown);
@@ -769,7 +774,6 @@ async function init() {
             syncMasters(true);
             if ($('#pageRecords').classList.contains('active')) loadRecords(true);
         }
-        // ⚡ AUTO-SYNC pending every interval
         syncPendingRecords(true);
     }, CONFIG.POLL_INTERVAL);
     window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); syncPendingRecords(false); });
@@ -820,15 +824,12 @@ function setupGlobalSearch(input, list, clearBtn, renderFn) {
     document.addEventListener('click', e => { const w = input.closest('.search-dropdown-wrap'); if (w && !w.contains(e.target)) list.classList.remove('open'); });
 }
 function setupFormEvents() {
-	// Stage-specific inspector dropdown
-    	$('#inspectorTypeFilter').addEventListener('change', () => {
-        // Clear selected inspector since list changed
-        	$('#inspectorSearchInput').value = '';
+    $('#inspectorTypeFilter').addEventListener('change', () => {
+        $('#inspectorSearchInput').value = '';
         state.selectedInspectorId = null;
-        	$('#inspectorClearBtn').classList.remove('visible');
+        $('#inspectorClearBtn').classList.remove('visible');
         renderInspectorDropdown('');
     });
-    // ➕ Temporary inspector toggle
     $('#toggleTempInspector').addEventListener('click', (e) => {
         e.preventDefault();
         const g = $('#tempInspectorGroup');
@@ -863,6 +864,15 @@ function setupFormEvents() {
         });
     });
 }
+
+// ══════════════════════════════════════════════════════════════
+// ✅ SMART MATCHER for Testing & Final inspectors
+// ══════════════════════════════════════════════════════════════
+function isTestingFinalType(stageType) {
+    const st = normalizeKey(stageType || 'General');
+    return st.includes('testing') || st.includes('final');
+}
+
 function renderParts() {
     const el = $('#partListContainer');
     if (!state.parts.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>No parts added yet.</p></div>`; return; }
@@ -875,8 +885,9 @@ function renderInspectors() {
     const el = $('#inspectorListContainer');
     const active = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
     if (!active.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div>`; return; }
-    const general = active.filter(i => (i.stageType || 'General') === 'General');
-    const testingFinal = active.filter(i => (i.stageType || 'General') === 'Testing & Final');
+    // ✅ SMART BUCKETING
+    const general = active.filter(i => !isTestingFinalType(i.stageType));
+    const testingFinal = active.filter(i => isTestingFinalType(i.stageType));
     let html = '';
     if (general.length) {
         html += `<div class="stage-group"><div class="stage-head"><span>General Inspectors<span class="stage-count">(${general.length})</span></span></div><div class="stage-body">`;
@@ -920,16 +931,40 @@ function renderNcMasters() {
 }
 function renderAll() { renderParts(); renderInspectors(); renderReworkPersonMaster(); renderNcStageOptions(); renderNcMasters(); renderDropdowns(); updateEditUI(); }
 function renderDropdowns() { renderInspectorDropdown(); renderPartDropdown(); renderGlobalFilterDropdowns(); renderNcPartFilterOptions(); renderReworkPersonDropdown(); }
+
 function renderInspectorDropdown(filter='') {
     const list = $('#inspectorDropdownList');
     const search = (filter || '').toLowerCase().trim();
     const typeFilter = $('#inspectorTypeFilter').value || 'General';
-    let insp = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
-    insp = insp.filter(i => (i.stageType || 'General') === typeFilter);
-    const f = search ? insp.filter(i => (i.inspectorName||'').toLowerCase().includes(search)) : insp;
-    if (!f.length) { list.innerHTML = `<div class="no-results">No ${typeFilter} inspectors</div>`; return; }
-    list.innerHTML = f.map(i => { const d = toTitleCase(i.inspectorName||''); return `<div class="dropdown-item" data-id="${escapeHtml(i.id||'')}" data-name="${escapeHtml(d)}">${search?highlightText(d,search):escapeHtml(d)}</div>`; }).join('');
-    list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { $('#inspectorSearchInput').value = el.dataset.name; state.selectedInspectorId = el.dataset.id; list.classList.remove('open'); $('#inspectorClearBtn').classList.add('visible'); }));
+    const wantTF = (typeFilter === 'Testing & Final');
+
+    let insp = (state.inspectors||[]).filter(i =>
+        i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin'
+    );
+
+    insp = insp.filter(i => {
+        const isTF = isTestingFinalType(i.stageType);
+        return wantTF ? isTF : !isTF;
+    });
+
+    const f = search
+        ? insp.filter(i => (i.inspectorName||'').toLowerCase().includes(search))
+        : insp;
+
+    if (!f.length) {
+        list.innerHTML = `<div class="no-results">No ${escapeHtml(typeFilter)} inspectors</div>`;
+        return;
+    }
+    list.innerHTML = f.map(i => {
+        const d = toTitleCase(i.inspectorName||'');
+        return `<div class="dropdown-item" data-id="${escapeHtml(i.id||'')}" data-name="${escapeHtml(d)}">${search ? highlightText(d, search) : escapeHtml(d)}</div>`;
+    }).join('');
+    list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => {
+        $('#inspectorSearchInput').value = el.dataset.name;
+        state.selectedInspectorId = el.dataset.id;
+        list.classList.remove('open');
+        $('#inspectorClearBtn').classList.add('visible');
+    }));
 }
 function renderPartDropdown(filter='') {
     const list = $('#partDropdownList');
@@ -964,6 +999,7 @@ function renderReworkPersonDropdown(filter='') {
     list.querySelectorAll('.dropdown-item').forEach(el => el.addEventListener('click', () => { state.selectedReworkPerson = el.dataset.name; $('#reworkPersonSearch').value = el.dataset.name; list.classList.remove('open'); showReworkContent(); }));
 }
 let syncPromise = null;
+
 async function syncMasters(silent) {
     if (syncPromise) return syncPromise;
     syncPromise = (async () => {
@@ -977,8 +1013,34 @@ async function syncMasters(silent) {
                 const localParts = loadFromStorage(CONFIG.STORAGE_KEYS.parts) || [];
                 const pm = {}; localParts.forEach(p => { if (p && p.partNumber) pm[String(p.partNumber).toLowerCase()] = p.project || p.plant; });
                 state.parts = parts.map(p => { const k = String(p.partNumber||'').toLowerCase(); return { ...p, project: p.project || p.plant || pm[k] || 'Both' }; });
+
+                const localInsp = loadFromStorage(CONFIG.STORAGE_KEYS.inspectors) || [];
+                const localTypeMap = {};
+                localInsp.forEach(i => {
+                    if (!i || !i.inspectorName) return;
+                    const k = normalizeKey(i.inspectorName);
+                    if (!localTypeMap[k] || isTestingFinalType(i.stageType)) {
+                        localTypeMap[k] = i.stageType || 'General';
+                    }
+                });
+
                 const seen = new Set();
-                state.inspectors = inspectors.filter(i => String(i.inspectorName||'').trim().toLowerCase() !== 'admin').map(i => ({ ...i, id: (i.id && String(i.id).trim()) || generateId(), inspectorName: toTitleCase(i.inspectorName||''), stageType: i.stageType || 'General' })).filter(i => { const k = normalizeKey(i.inspectorName) + '|' + normalizeKey(i.stageType); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+                state.inspectors = inspectors
+                    .filter(i => String(i.inspectorName||'').trim().toLowerCase() !== 'admin')
+                    .map(i => {
+                        const k = normalizeKey(i.inspectorName);
+                        return {
+                            ...i,
+                            id: (i.id && String(i.id).trim()) || generateId(),
+                            inspectorName: toTitleCase(i.inspectorName||''),
+                            stageType: i.stageType || localTypeMap[k] || 'General'
+                        };
+                    })
+                    .filter(i => {
+                        const k = normalizeKey(i.inspectorName) + '|' + normalizeKey(i.stageType);
+                        if (!k || seen.has(k)) return false;
+                        seen.add(k); return true;
+                    });
                 saveToStorage(CONFIG.STORAGE_KEYS.parts, state.parts);
                 saveToStorage(CONFIG.STORAGE_KEYS.inspectors, state.inspectors);
                 setSyncStatus('synced', 'Synced');
@@ -1032,14 +1094,22 @@ async function addPart() { if (!requireEdit()) return;
     await syncMasters(true); showToast('Part added!', 'success');
 }
 async function deletePart(id) { if (!requireEdit()) return; if (!confirm('Delete this part?')) return; const r = await apiCall('deletePart', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Part deleted.', 'success'); }
-async function addInspector() { if (!requireEdit()) return;
+async function addInspector() { 
+    if (!requireEdit()) return;
     const name = toTitleCase($('#inspectorNameInput').value);
     const stageType = $('#inspectorTypeInput').value || 'General';
     if (!name) { showToast('Enter name.', 'error'); return; }
     if (name.toLowerCase() === 'admin') { showToast('Admin is not inspector.', 'error'); return; }
-    if (state.inspectors.some(i => eqIgnoreCase(i.inspectorName, name) && (i.stageType || 'General') === stageType)) { showToast('This inspector already exists for ' + stageType + '.', 'error'); return; }
+    if (state.inspectors.some(i => eqIgnoreCase(i.inspectorName, name) && isTestingFinalType(i.stageType) === isTestingFinalType(stageType))) { showToast('This inspector already exists for ' + stageType + '.', 'error'); return; }
     const ni = { id: generateId(), inspectorName: name, active: true, stageType: stageType };
-    const r = await apiCall('addInspector', { inspector: ni }); if (!r || r.success === false) { showToast('Failed: ' + (r?.error||'unknown'), 'error'); return; }
+    
+    // Save locally before API
+    const locals = loadFromStorage(CONFIG.STORAGE_KEYS.inspectors) || [];
+    locals.push(ni);
+    saveToStorage(CONFIG.STORAGE_KEYS.inspectors, locals);
+
+    const r = await apiCall('addInspector', { inspector: ni }); 
+    if (!r || r.success === false) { showToast('Failed: ' + (r?.error||'unknown'), 'error'); return; }
     $('#inspectorNameInput').value = ''; await syncMasters(true); showToast('Inspector added to ' + stageType + '.', 'success');
 }
 async function removeInspector(id) { if (!requireEdit()) return; if (!confirm('Delete inspector?')) return; const r = await apiCall('removeInspector', { id }); if (!r || r.success === false) { showToast('Failed.', 'error'); return; } await syncMasters(true); showToast('Deleted.', 'success'); }
@@ -1090,7 +1160,6 @@ function toggleEdit() {
 async function submitEntry() {
     if (state.isSubmitting) return;
     abortPending();
-    // ⚡ पहले पुराना pending try करो
     syncPendingRecords(true);
     const safety = setTimeout(() => { if (state.isSubmitting) { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); showToast('Took too long.', 'warning'); } }, 60000);
 
@@ -1098,7 +1167,6 @@ async function submitEntry() {
     if (!c.date) { showToast('Select date.', 'error'); clearTimeout(safety); return; }
     if (!c.project) { showToast('Select project.', 'error'); clearTimeout(safety); return; }
     if (!c.shift) { showToast('Select shift.', 'error'); clearTimeout(safety); return; }
-        // Temporary inspector support
     const tempName = $('#tempInspectorInput').value.trim();
     const tempGroupVisible = !$('#tempInspectorGroup').classList.contains('hidden');
     let finalInspectorName = c.inspectorName;
@@ -1111,10 +1179,17 @@ async function submitEntry() {
     if (!c.partNumber) { showToast('Select part.', 'error'); clearTimeout(safety); return; }
     if (!c.jobNo) { showToast('Enter Job No.', 'error'); clearTimeout(safety); return; }
     if (!c.operatorName) { showToast('Enter operator.', 'error'); clearTimeout(safety); return; }
-        const selectedType = $('#inspectorTypeFilter').value || 'General';
+
+    const selectedType = $('#inspectorTypeFilter').value || 'General';
+    const wantTF = (selectedType === 'Testing & Final');
     const usingTemp = tempGroupVisible && tempName;
     if (!usingTemp) {
-        if (!state.inspectors.some(i => eqIgnoreCase(i.inspectorName, c.inspectorName) && i.active !== false && (i.stageType || 'General') === selectedType)) {
+        const inspValid = state.inspectors.some(i => {
+            if (!eqIgnoreCase(i.inspectorName, c.inspectorName)) return false;
+            if (i.active === false) return false;
+            return wantTF ? isTestingFinalType(i.stageType) : !isTestingFinalType(i.stageType);
+        });
+        if (!inspValid) {
             showToast(`Inspector "${c.inspectorName}" not found in ${selectedType} list.`, 'error');
             clearTimeout(safety); return;
         }
@@ -1146,7 +1221,7 @@ async function submitEntry() {
             return {
                 id: generateId(),
                 project: c.project, date: c.date, shift: c.shift.trim(),
-                                inspectorName: finalInspectorName,
+                inspectorName: finalInspectorName,
                 partNumber: c.partNumber, partDescription: c.partDescription,
                 jobNo: c.jobNo, operatorName: toTitleCase(c.operatorName),
                 okQty: i === 0 ? c.okQty : 0,
@@ -1159,34 +1234,28 @@ async function submitEntry() {
             };
         });
 
-        // ⚡ पहले local save करो (offline-safe)
         const recs = loadFromStorage(CONFIG.STORAGE_KEYS.records) || [];
         allRecords.forEach(x => recs.push(x));
         saveToStorage(CONFIG.STORAGE_KEYS.records, recs);
         state.records = recs;
 
-        // Server push
         const r = await apiCall('addRecordsBatch', { records: allRecords });
 
         if (r && r.success) {
             showToast(`✅ ${allRecords.length} rejection${allRecords.length>1?'s':''} submitted!`, 'success');
             clearPending(allRecords.map(x => x.id));
         } else {
-            // ⚡ ऑटो-sync के लिए pending में डालो
             markPending(allRecords);
             showToast(`⏳ ${allRecords.length} saved locally — will auto-sync when online`, 'warning', 4000);
         }
-                $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
+        $('#ncEntriesContainer').innerHTML = ''; ncEntryCounter = 0; addNcEntry();
         $('#okQtyInput').value = '';
-        // Reset temporary inspector
         $('#tempInspectorInput').value = '';
         $('#tempInspectorGroup').classList.add('hidden');
         $('#toggleTempInspector').textContent = '➕ Add Temporary Name (not in master)';
         loadRecords().catch(()=>{});
     } catch (e) {
         showToast('Error: ' + e.message, 'error');
-        // Exception पर भी pending में save करो (safe)
-        // (already done above)
     }
     finally { state.isSubmitting = false; $('#submitEntryBtn').disabled = false; $('#submitEntryBtn').innerHTML = '<i class="fas fa-check-circle"></i> Submit All'; hideLoading(); clearTimeout(safety); }
 }
