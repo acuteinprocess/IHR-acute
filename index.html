@@ -469,7 +469,7 @@ textarea.form-control{resize:vertical;min-height:60px}
 <script>
 const CONFIG = {
     API_URL: 'https://script.google.com/macros/s/AKfycbxagkj38DlGxue2uJScl214SzbDHg8DNN5PLm0fGyDuZog5RKpDbykEybFtdxmdJZgSwg/exec',
-    STORAGE_KEYS: { parts:'ihr_parts', inspectors:'ihr_inspectors', records:'ihr_records', ncStages:'ihr_nc_stages', ncDefects:'ihr_nc_defects', reworkPersons:'ihr_rework_persons', pending:'ihr_pending_records' },
+    STORAGE_KEYS: { parts:'ihr_parts', inspectors:'ihr_inspectors', records:'ihr_records', ncStages:'ihr_nc_stages', ncDefects:'ihr_nc_defects', reworkPersons:'ihr_rework_persons', pending:'ihr_pending_records', reworkHistory: 'ihr_rework_history' },
     EDIT_PASSWORD: 'ahtqa2026',
     POLL_INTERVAL: 15000,
     PAGE_SIZE: 20,
@@ -514,7 +514,7 @@ function getRecordAge(r) { if (!r.timestamp) return 0; const d = new Date(r.time
 function ageBadge(r) { const a = getRecordAge(r); if (a <= 0) return `<span class="age-b">Today</span>`; if (a <= 2) return `<span class="age-b">${a}d</span>`; if (a <= 7) return `<span class="age-b w">${a}d</span>`; return `<span class="age-b d">${a}d ⚠️</span>`; }
 const DEFAULT_NC_STAGES = ['WIRE CUTTING','CRIMPING','HST SLEEVE INSERTION','GROMMATE INSERTION','NAVIGATION & INSERTION','TAPING','TESTING','FINAL INSPECTION'];
 const DEFAULT_NC_DEFECTS = { 'WIRE CUTTING':['Wire Damage','Long length','Short length','Wrong CS wire','Wrong Colour wire'],'CRIMPING':['High Core Crimping','Low Core Crimping','Insulation Damage','Crimp on upper side','Crimp on lower side','Stand Out Crimping','Terminal missed','Wrong joint','Wire Missed in joint','Terminal twist','Cut-off tab above 0.5','Rubber seal damage','Insulation crimp lance damage'],'HST SLEEVE INSERTION':['HST Missing','SLEEVE Missing','Shrinking Missing','Shrinking not Proper'],'GROMMATE INSERTION':['GROMATE Missing','Wrong Gromate Insertion'],'NAVIGATION & INSERTION':['Terminal bend','Connector Damage','Rubber seal damage'],'TAPING':['Branch Open'],'TESTING':['Interchange','Short Point','Open Point'],'FINAL INSPECTION':['Backout','Flash in connector','Low insulation crimp','Connector lock or tab issue'] };
-let state = { parts: [], inspectors: [], records: [], ncStages: [], ncDefects: {}, reworkPersons: [], selectedPartId: null, selectedInspectorId: null, selectedNcDesc: null, selectedReworkPerson: '', isSubmitting: false, editMode: false, autoRefresh: true, filteredRecords: [] };
+let state = { parts: [], inspectors: [], records: [], ncStages: [], ncDefects: {}, reworkPersons: [], reworkHistory: [], selectedPartId: null, selectedInspectorId: null, selectedNcDesc: null, selectedReworkPerson: '', isSubmitting: false, editMode: false, autoRefresh: true, filteredRecords: [] };
 let ncEntryCounter = 0;
 let _selectedWeek = null;
 let pendingSyncInFlight = false;
@@ -542,7 +542,12 @@ function setSyncStatus(status, text) {
     const b = document.getElementById('refreshToggle'); if (b) b.addEventListener('click', toggleAutoRefresh);
     updateReworkBadge(); updatePendingBadge();
 }
-function updateReworkBadge() { const b = document.getElementById('reworkBadge'); if (!b) return; const c = (state.records||[]).filter(r => getRecordStatus(r) === REWORK_PENDING).length; b.textContent = c; b.classList.toggle('hidden', c === 0); b.onclick = () => navigateTo('pageRework'); }
+function updateReworkBadge() { 
+    const b = document.getElementById('reworkBadge'); if (!b) return; 
+    const historyIds = new Set((state.reworkHistory || []).map(h => String(h.id)));
+    const c = (state.records||[]).filter(r => getRecordStatus(r) === REWORK_PENDING && !historyIds.has(String(r.id))).length; 
+    b.textContent = c; b.classList.toggle('hidden', c === 0); b.onclick = () => navigateTo('pageRework'); 
+}
 function toggleAutoRefresh() { state.autoRefresh = !state.autoRefresh; setSyncStatus(state.autoRefresh ? 'synced' : 'idle', state.autoRefresh ? 'Synced' : 'Manual'); showToast(state.autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF', 'info', 1500); }
 
 // ============================================================
@@ -719,10 +724,11 @@ async function init() {
     state.inspectors = (loadFromStorage(CONFIG.STORAGE_KEYS.inspectors)||[]).map(i=>({...i,inspectorName:toTitleCase(i.inspectorName||'')}));
     state.records = loadFromStorage(CONFIG.STORAGE_KEYS.records)||[];
     state.reworkPersons = (loadFromStorage(CONFIG.STORAGE_KEYS.reworkPersons)||[]).map(p=>({...p,personName:toTitleCase(p.personName||'')}));
+    state.reworkHistory = loadFromStorage(CONFIG.STORAGE_KEYS.reworkHistory) || [];
     loadNcMastersLocal();
     renderAll();
     updatePendingBadge();
-    await Promise.all([syncMasters(), loadRecords()]);
+    await Promise.all([syncMasters(), loadRecords(), loadReworkHistory()]);
     await loadReworkPersons();
     syncPendingRecords(true);
 
@@ -773,10 +779,11 @@ async function init() {
         if (navigator.onLine && state.autoRefresh && !isUserBusy()) {
             syncMasters(true);
             if ($('#pageRecords').classList.contains('active')) loadRecords(true);
+            loadReworkHistory();
         }
         syncPendingRecords(true);
     }, CONFIG.POLL_INTERVAL);
-    window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); syncPendingRecords(false); });
+    window.addEventListener('online', () => { showToast('Back online. Syncing...', 'success', 2000); syncMasters(); loadRecords(); syncPendingRecords(false); loadReworkHistory(); });
     window.addEventListener('offline', () => { setSyncStatus('offline','Offline'); showToast('Offline. Data cached.', 'warning', 3000); });
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if ($('#pageRecords').classList.contains('active')) applyGlobalFilters(); }, 300); });
     navigateTo('pageRecords');
@@ -885,7 +892,6 @@ function renderInspectors() {
     const el = $('#inspectorListContainer');
     const active = (state.inspectors||[]).filter(i => i.active !== false && String(i.inspectorName||'').trim().toLowerCase() !== 'admin');
     if (!active.length) { el.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No inspectors added yet.</p></div>`; return; }
-    // ✅ SMART BUCKETING
     const general = active.filter(i => !isTestingFinalType(i.stageType));
     const testingFinal = active.filter(i => isTestingFinalType(i.stageType));
     let html = '';
@@ -1072,6 +1078,16 @@ async function loadRecords(silent) {
         applyGlobalFilters(); updateReworkBadge();
     })();
     return recordsPromise;
+}
+async function loadReworkHistory() {
+    try {
+        const r = await apiFetch('getReworkHistory');
+        let arr = [];
+        if (Array.isArray(r.data)) arr = r.data;
+        else if (r.data && Array.isArray(r.data.data)) arr = r.data.data;
+        state.reworkHistory = arr || [];
+        saveToStorage(CONFIG.STORAGE_KEYS.reworkHistory, state.reworkHistory);
+    } catch (e) { console.warn(e); }
 }
 async function loadReworkPersons() {
     try {
@@ -1270,7 +1286,11 @@ function showReworkContent() {
 function renderReworkPage() {
     const today = new Date().toISOString().slice(0,10);
     const all = state.records || [];
-    const pending = all.filter(r => getRecordStatus(r) === REWORK_PENDING);
+    
+    // ✅ FIX: Hide records that have been added to history
+    const historyIds = new Set((state.reworkHistory || []).map(h => String(h.id)));
+    
+    const pending = all.filter(r => getRecordStatus(r) === REWORK_PENDING && !historyIds.has(String(r.id)));
     const doneToday = all.filter(r => getRecordStatus(r) === REWORK_DONE && r.reworkDate === today);
     const scrapped = all.filter(r => getRecordStatus(r) === REWORK_SCRAPPED);
     const totalReworked = all.filter(r => getRecordStatus(r) === REWORK_DONE).length;
@@ -1339,15 +1359,33 @@ function openReworkPopup(id) {
 async function submitReworkAction(upd) {
     showLoading('Saving...');
     try {
+        // 1. Add to history
+        await apiCall('addReworkHistory', { record: upd });
+        
+        // 2. Update main record
         const r = await apiCall('updateRecord', { record: upd });
+        
         if (r && r.success) {
+            // 3. Update local state
+            if (!state.reworkHistory) state.reworkHistory = [];
+            if (!state.reworkHistory.some(h => String(h.id) === String(upd.id))) {
+                state.reworkHistory.push(upd);
+            }
+            saveToStorage(CONFIG.STORAGE_KEYS.reworkHistory, state.reworkHistory);
+
             const i = state.records.findIndex(x => x.id === upd.id);
             if (i > -1) state.records[i] = upd;
             saveToStorage(CONFIG.STORAGE_KEYS.records, state.records);
+            
             $('#reworkPopupOverlay').classList.remove('active');
-            showToast('Rework saved.', 'success');
-            renderReworkPage(); updateReworkBadge(); applyGlobalFilters();
-        } else showToast('Failed: ' + (r?.error||'unknown'), 'error');
+            showToast('Rework saved & logged successfully.', 'success');
+            
+            renderReworkPage(); 
+            updateReworkBadge(); 
+            applyGlobalFilters();
+        } else {
+            showToast('Failed to update record: ' + (r?.error||'unknown'), 'error');
+        }
     } catch (e) { showToast('Error: ' + e.message, 'error'); }
     finally { hideLoading(); }
 }
