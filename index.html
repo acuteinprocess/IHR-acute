@@ -1360,7 +1360,11 @@ async function submitReworkAction(upd) {
     showLoading('Saving...');
     try {
         // 1. Add to history
-        await apiCall('addReworkHistory', { record: upd });
+        const histRes = await apiCall('addReworkHistory', { record: upd });
+        if (!histRes || histRes.success === false) {
+            console.warn('History save failed', histRes);
+            showToast('Warning: Failed to save history. Check Apps Script.', 'warning');
+        }
         
         // 2. Update main record
         const r = await apiCall('updateRecord', { record: upd });
