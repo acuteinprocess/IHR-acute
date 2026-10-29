@@ -501,6 +501,14 @@ function toDateString(di) {
     if (isNaN(d)) return '';
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+// ⚡ SMART DATE COMPARISON (Fixes the Done Today issue)
+function isDateToday(dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    const today = new Date();
+    return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+}
 const STAGE_TO_NC_PART = { 'WIRE CUTTING':'Wire','CRIMPING':'Terminal','NAVIGATION & INSERTION':'Terminal','HST SLEEVE INSERTION':'Other','GROMMATE INSERTION':'Other','TAPING':'Other','TESTING':'Other','FINAL INSPECTION':'Other' };
 function getEffectiveNcPart(r) { const e = (r && r.ncPart || '').trim(); if (e) return e; const st = normalizeKey(r && r.ncStage); for (const k of Object.keys(STAGE_TO_NC_PART)) if (normalizeKey(k) === st) return STAGE_TO_NC_PART[k]; return 'Other'; }
 const BASE_NC_PARTS = ['Wire','Terminal','Connector','Other'];
@@ -509,7 +517,7 @@ const REWORK_PENDING = 'Pending for Rework';
 const REWORK_DONE = 'Rework Done';
 const REWORK_SCRAPPED = 'Scrapped';
 function getRecordStatus(r) { if (r.status) return r.status; if (eqIgnoreCase(r.requiredDisposition,'Rework')) return REWORK_PENDING; if (eqIgnoreCase(r.requiredDisposition,'Reject')) return REWORK_SCRAPPED; if (eqIgnoreCase(r.requiredDisposition,'Accept under Deviation')) return 'Accepted with Deviation'; return 'OK'; }
-function getStatusColor(r) { const s = getRecordStatus(r); if (s === REWORK_PENDING) return 'var(--accent)'; if (s === REWORK_SCRAPPED) return 'var(--danger)'; if (s === REWORK_DONE) return 'var(--success)'; return 'var(--primary)'; }
+function getStatusColor(r) { const s = getRecordStatus(r); if (eqIgnoreCase(s, REWORK_PENDING)) return 'var(--accent)'; if (eqIgnoreCase(s, REWORK_SCRAPPED)) return 'var(--danger)'; if (eqIgnoreCase(s, REWORK_DONE)) return 'var(--success)'; return 'var(--primary)'; }
 function getRecordAge(r) { if (!r.timestamp) return 0; const d = new Date(r.timestamp); if (isNaN(d)) return 0; return Math.floor((Date.now() - d) / 86400000); }
 function ageBadge(r) { const a = getRecordAge(r); if (a <= 0) return `<span class="age-b">Today</span>`; if (a <= 2) return `<span class="age-b">${a}d</span>`; if (a <= 7) return `<span class="age-b w">${a}d</span>`; return `<span class="age-b d">${a}d ⚠️</span>`; }
 const DEFAULT_NC_STAGES = ['WIRE CUTTING','CRIMPING','HST SLEEVE INSERTION','GROMMATE INSERTION','NAVIGATION & INSERTION','TAPING','TESTING','FINAL INSPECTION'];
@@ -545,7 +553,7 @@ function setSyncStatus(status, text) {
 function updateReworkBadge() { 
     const b = document.getElementById('reworkBadge'); if (!b) return; 
     const historyIds = new Set((state.reworkHistory || []).map(h => String(h.id)));
-    const c = (state.records||[]).filter(r => getRecordStatus(r) === REWORK_PENDING && !historyIds.has(String(r.id))).length; 
+    const c = (state.records||[]).filter(r => eqIgnoreCase(getRecordStatus(r), REWORK_PENDING) && !historyIds.has(String(r.id))).length; 
     b.textContent = c; b.classList.toggle('hidden', c === 0); b.onclick = () => navigateTo('pageRework'); 
 }
 function toggleAutoRefresh() { state.autoRefresh = !state.autoRefresh; setSyncStatus(state.autoRefresh ? 'synced' : 'idle', state.autoRefresh ? 'Synced' : 'Manual'); showToast(state.autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF', 'info', 1500); }
@@ -1284,21 +1292,23 @@ function showReworkContent() {
     renderReworkPage();
 }
 function renderReworkPage() {
-    const today = new Date().toISOString().slice(0,10);
     const all = state.records || [];
     
     // ✅ FIX: Hide records that have been added to history
     const historyIds = new Set((state.reworkHistory || []).map(h => String(h.id)));
     
-    const pending = all.filter(r => getRecordStatus(r) === REWORK_PENDING && !historyIds.has(String(r.id)));
-    const doneToday = all.filter(r => getRecordStatus(r) === REWORK_DONE && r.reworkDate === today);
-    const scrapped = all.filter(r => getRecordStatus(r) === REWORK_SCRAPPED);
-    const totalReworked = all.filter(r => getRecordStatus(r) === REWORK_DONE).length;
+    const pending = all.filter(r => eqIgnoreCase(getRecordStatus(r), REWORK_PENDING) && !historyIds.has(String(r.id)));
+    const doneToday = all.filter(r => eqIgnoreCase(getRecordStatus(r), REWORK_DONE) && isDateToday(r.reworkDate));
+    const scrapped = all.filter(r => eqIgnoreCase(getRecordStatus(r), REWORK_SCRAPPED));
+    
+    const totalReworked = all.filter(r => eqIgnoreCase(getRecordStatus(r), REWORK_DONE)).length;
     const ratio = (totalReworked + scrapped.length) > 0 ? Math.round(totalReworked / (totalReworked + scrapped.length) * 100) : 0;
+    
     $('#rwPending').textContent = pending.length;
     $('#rwDoneToday').textContent = doneToday.length;
     $('#rwScrapped').textContent = scrapped.length;
     $('#rwRatio').textContent = ratio + '%';
+    
     const fp = $('#rwFilterProject').value, fa = $('#rwFilterAge').value;
     let f = pending;
     if (fp) f = f.filter(r => eqIgnoreCase(r.project, fp));
